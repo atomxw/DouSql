@@ -14,6 +14,10 @@ import burp.api.montoya.ui.contextmenu.ContextMenuEvent;
 import burp.api.montoya.ui.contextmenu.MessageEditorHttpRequestResponse;
 import burp.api.montoya.ui.editor.HttpRequestEditor;
 import burp.api.montoya.ui.editor.HttpResponseEditor;
+import burp.api.montoya.utilities.json.JsonUtils;
+import burp.api.montoya.utilities.json.JsonNode;
+import burp.api.montoya.utilities.json.JsonObjectNode;
+import burp.api.montoya.utilities.json.JsonArrayNode;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
@@ -45,7 +49,7 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
     private final List<RequestMd5> log4Md5 = new ArrayList<>();
 
     // 配置目录常量
-    private static String CONFIG_DIR = "xia-sql"; // 默认值，会在初始化时更新
+    private static String CONFIG_DIR = "dousql"; // 默认值，会在初始化时更新
     private static String JAR_DIR = ""; // jar包所在目录
     
     // 配置变量
@@ -126,7 +130,10 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         this.api = api;
 
         // 设置扩展名称
-        api.extension().setName("DouSQL V3.0.2");
+        api.extension().setName("DouSQL V3.0.3");
+
+        // Windows系统UI优化
+        optimizeUIForWindows();
 
         // 初始化配置目录路径
         initializeConfigDirectory();
@@ -137,7 +144,7 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         // 输出启动信息
         api.logging().logToOutput("hello DouSQL!");
         api.logging().logToOutput("你好 欢迎使用 DouSQL!");
-        api.logging().logToOutput("version:3.0.2 (Montoya API)");
+        api.logging().logToOutput("version:3.0.3 (Montoya API)");
         api.logging().logToOutput("jar包目录: " + JAR_DIR);
         api.logging().logToOutput("配置文件目录: " + CONFIG_DIR);
 
@@ -158,97 +165,44 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
             String userSpecifiedDir = System.getProperty("dousql.config.dir");
             if (userSpecifiedDir != null && !userSpecifiedDir.trim().isEmpty()) {
                 JAR_DIR = userSpecifiedDir;
-                CONFIG_DIR = JAR_DIR + File.separator + "xia-sql";
+                CONFIG_DIR = JAR_DIR + File.separator + "dousql";
                 api.logging().logToOutput("使用用户指定的配置目录: " + JAR_DIR);
                 return;
             }
             
-            // 方法1：通过ProtectionDomain获取jar包真实路径
+            // 尝试获取jar包路径
             String jarPath = null;
+            boolean useHomeDir = true;
+            
             try {
                 jarPath = this.getClass().getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
                 api.logging().logToOutput("ProtectionDomain路径: " + jarPath);
                 
                 if (jarPath != null && jarPath.endsWith(".jar")) {
+                    // 真正的jar文件，使用jar包同级目录
                     File jarFile = new File(jarPath);
                     JAR_DIR = jarFile.getParent();
-                    api.logging().logToOutput("通过ProtectionDomain获取jar目录: " + JAR_DIR);
+                    useHomeDir = false;
+                    api.logging().logToOutput("检测到jar文件，使用jar包同级目录: " + JAR_DIR);
                 }
             } catch (Exception e) {
-                api.logging().logToOutput("ProtectionDomain方法失败: " + e.getMessage());
+                api.logging().logToOutput("获取jar路径失败: " + e.getMessage());
             }
             
-            // 方法2：如果方法1失败，尝试通过类路径获取
-            if (JAR_DIR == null) {
-                String className = this.getClass().getName().replace('.', '/') + ".class";
-                java.net.URL classUrl = this.getClass().getClassLoader().getResource(className);
-                
-                if (classUrl != null) {
-                    String classPath = classUrl.toString();
-                    api.logging().logToOutput("类路径: " + classPath);
-                    
-                    if (classPath.startsWith("jar:file:")) {
-                        // 从jar包中运行
-                        String tempJarPath = classPath.substring(9); // 移除 "jar:file:"
-                        int exclamationIndex = tempJarPath.indexOf('!');
-                        if (exclamationIndex != -1) {
-                            tempJarPath = tempJarPath.substring(0, exclamationIndex);
-                        }
-                        
-                        // 获取jar包所在目录
-                        File jarFile = new File(tempJarPath);
-                        String jarDir = jarFile.getParent();
-                        
-                        // 检查是否是Burp的临时目录
-                        if (jarDir != null && jarDir.contains("burp") && jarDir.contains(".tmp")) {
-                            // 尝试从系统属性获取真实路径
-                            String burpExtDir = System.getProperty("burp.extensions.dir");
-                            if (burpExtDir != null) {
-                                JAR_DIR = burpExtDir;
-                                api.logging().logToOutput("使用Burp扩展目录: " + JAR_DIR);
-                            } else {
-                                // 使用用户主目录下的DouSQL目录
-                                JAR_DIR = System.getProperty("user.home") + File.separator + "DouSQL";
-                                api.logging().logToOutput("检测到Burp临时目录，使用用户主目录: " + JAR_DIR);
-                            }
-                        } else {
-                            JAR_DIR = jarDir != null ? jarDir : System.getProperty("user.dir");
-                        }
-                    } else if (classPath.startsWith("file:")) {
-                        // 从文件系统运行（开发环境）
-                        JAR_DIR = System.getProperty("user.dir");
-                    } else {
-                        // 其他情况，使用用户主目录
-                        JAR_DIR = System.getProperty("user.home") + File.separator + "DouSQL";
-                    }
-                }
+            // 如果无法获取真实jar路径或检测到临时目录，使用用户主目录
+            if (useHomeDir) {
+                JAR_DIR = System.getProperty("user.home");
+                CONFIG_DIR = JAR_DIR + File.separator + "dousql";
+                api.logging().logToOutput("使用用户主目录: " + JAR_DIR);
+            } else {
+                CONFIG_DIR = JAR_DIR + File.separator + "dousql";
             }
-            
-            // 方法3：最后的备选方案
-            if (JAR_DIR == null) {
-                // 尝试从环境变量获取
-                String userDir = System.getProperty("user.dir");
-                String homeDir = System.getProperty("user.home");
-                
-                // 检查当前目录是否有写权限
-                File testDir = new File(userDir);
-                if (testDir.canWrite()) {
-                    JAR_DIR = userDir;
-                    api.logging().logToOutput("使用当前工作目录: " + JAR_DIR);
-                } else {
-                    JAR_DIR = homeDir + File.separator + "DouSQL";
-                    api.logging().logToOutput("使用用户主目录: " + JAR_DIR);
-                }
-            }
-            
-            // 设置配置目录
-            CONFIG_DIR = JAR_DIR + File.separator + "xia-sql";
             
         } catch (Exception e) {
             // 出现异常时，使用用户主目录
             api.logging().logToOutput("初始化配置目录失败，使用用户主目录: " + e.getMessage());
-            JAR_DIR = System.getProperty("user.home") + File.separator + "DouSQL";
-            CONFIG_DIR = JAR_DIR + File.separator + "xia-sql";
+            JAR_DIR = System.getProperty("user.home");
+            CONFIG_DIR = JAR_DIR + File.separator + "dousql";
         }
     }
 
@@ -322,7 +276,7 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         gbc.weightx = 1.0;
         gbc.insets = new Insets(1, 0, 1, 0); // 上下间距1像素
 
-        JLabel jls = new JLabel("DouSQL-安全鸭专属【超级魔改版本】｜Author By：DarkFi5");
+        JLabel jls = new JLabel("DouSQL-安全鸭专属【魔改版本】｜Author By：DarkFi5");
 
         chkbox1 = new JCheckBox("启动插件", true);
         chkbox2 = new JCheckBox("监控Repeater");
@@ -332,46 +286,92 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
 
         jls5 = new JLabel("如果需要多个域名加白请用,隔开");
         whiteTextField = new JTextField("填写白名单域名");
-        whiteTextField.setPreferredSize(new Dimension(200, 25)); // 设置固定尺寸
+        // 确保输入框在Windows下能正确显示
+        whiteTextField.setPreferredSize(new Dimension(220, 25));
+        whiteTextField.setMinimumSize(new Dimension(180, 25));
+        whiteTextField.setMaximumSize(new Dimension(300, 25));
+        // 设置边框，确保可见性
+        whiteTextField.setBorder(BorderFactory.createLoweredBevelBorder());
+        
         btn1 = new JButton("清空列表");
         btn2 = new JButton("加载/重新加载payload");
         btn3 = new JButton("启动白名单");
+        
+        // 确保按钮在Windows下也能完整显示
+        btn1.setPreferredSize(new Dimension(120, 25));
+        btn2.setPreferredSize(new Dimension(150, 25));
+        btn3.setPreferredSize(new Dimension(120, 25));
 
         // 按顺序添加组件，确保所有组件都能显示
         int row = 0;
-        gbc.gridy = row++; controlOptionsPanel.add(jls, gbc);
+        gbc.gridy = row++; 
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        controlOptionsPanel.add(jls, gbc);
     
-        
-        // 添加小间距
-        gbc.gridy = row++; gbc.insets = new Insets(3, 0, 1, 0);
+        // 添加复选框组
+        gbc.gridy = row++; 
+        gbc.insets = new Insets(3, 0, 1, 0);
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0.0;
         controlOptionsPanel.add(chkbox1, gbc);
-        gbc.insets = new Insets(1, 0, 1, 0); // 恢复正常间距
         
-        gbc.gridy = row++; controlOptionsPanel.add(chkbox2, gbc);
-        gbc.gridy = row++; controlOptionsPanel.add(chkbox3, gbc);
-        gbc.gridy = row++; controlOptionsPanel.add(chkbox4, gbc);
-        gbc.gridy = row++; controlOptionsPanel.add(chkbox8, gbc);
+        gbc.gridy = row++; 
+        gbc.insets = new Insets(1, 0, 1, 0);
+        controlOptionsPanel.add(chkbox2, gbc);
         
-        // 添加小间距
-        gbc.gridy = row++; gbc.insets = new Insets(3, 0, 1, 0);
+        gbc.gridy = row++; 
+        controlOptionsPanel.add(chkbox3, gbc);
+        
+        gbc.gridy = row++; 
+        controlOptionsPanel.add(chkbox4, gbc);
+        
+        gbc.gridy = row++; 
+        controlOptionsPanel.add(chkbox8, gbc);
+        
+        // 添加清空列表按钮
+        gbc.gridy = row++; 
+        gbc.insets = new Insets(8, 0, 3, 0);
         controlOptionsPanel.add(btn1, gbc);
-        gbc.insets = new Insets(1, 0, 1, 0); // 恢复正常间距
         
-        gbc.gridy = row++; controlOptionsPanel.add(jls5, gbc);
-        gbc.gridy = row++; controlOptionsPanel.add(whiteTextField, gbc);
-        gbc.gridy = row++; controlOptionsPanel.add(btn3, gbc);
-        gbc.gridy = row++; controlOptionsPanel.add(btn2, gbc);
+        // 添加白名单相关组件
+        gbc.gridy = row++; 
+        gbc.insets = new Insets(5, 0, 2, 0);
+        controlOptionsPanel.add(jls5, gbc);
         
-        // 添加弹性空间，确保组件紧凑排列
+        gbc.gridy = row++; 
+        gbc.insets = new Insets(2, 0, 2, 0);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        controlOptionsPanel.add(whiteTextField, gbc);
+        
+        gbc.gridy = row++; 
+        gbc.insets = new Insets(2, 0, 3, 0);
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.weightx = 0.0;
+        controlOptionsPanel.add(btn3, gbc);
+        
+        // 添加加载payload按钮
+        gbc.gridy = row++; 
+        gbc.insets = new Insets(5, 0, 5, 0);
+        controlOptionsPanel.add(btn2, gbc);
+        
+        // 重置弹性空间设置，避免在Windows下产生过多空白
         gbc.gridy = row++;
-        gbc.weighty = 1.0;
-        gbc.fill = GridBagConstraints.BOTH;
-        controlOptionsPanel.add(Box.createVerticalGlue(), gbc);
+        gbc.weighty = 0.1; // 减少弹性权重
+        gbc.fill = GridBagConstraints.VERTICAL;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        controlOptionsPanel.add(Box.createVerticalStrut(10), gbc); // 使用固定间距替代弹性空间
         
-        // 将控制选项面板添加到控制面板的顶部
-        controlPanel.add(controlOptionsPanel, BorderLayout.NORTH);
+        // 将控制选项面板添加到控制面板
+        controlPanel.add(controlOptionsPanel, BorderLayout.CENTER); // 改为CENTER避免过多空白
+        
         // 在白名单位置创建标签页
         whiteTabbedPane = new JTabbedPane();
+        // 设置标签页的最小高度，避免被压缩
+        whiteTabbedPane.setPreferredSize(new Dimension(250, 400));
+        whiteTabbedPane.setMinimumSize(new Dimension(200, 300));
 
         // 第一个标签页：自定义SQL语句（原来的payload编辑框）
         JPanel customPayloadPanel = new JPanel(new BorderLayout());
@@ -398,33 +398,45 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         payloadTextArea.setBackground(Color.LIGHT_GRAY);
         payloadTextArea.setEditable(false);
         JScrollPane textAreaScrollPane = new JScrollPane(payloadTextArea);
-        // 分组控制面板 - 使用最紧凑的FlowLayout布局
-        JPanel groupPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 1, 0));
+        
+        // 分组控制面板 - 使用GridBagLayout确保所有按钮都能显示
+        JPanel groupPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbcGroup = new GridBagConstraints();
+        gbcGroup.insets = new Insets(2, 2, 2, 2);
+        gbcGroup.anchor = GridBagConstraints.WEST;
         
         JLabel groupLabel = new JLabel("测试组:");
         payloadGroupComboBox = new JComboBox<>();
         payloadGroupComboBox.setPreferredSize(new Dimension(80, 25));
         
         newGroupNameField = new JTextField("新组名");
-        newGroupNameField.setPreferredSize(new Dimension(60, 25));
+        newGroupNameField.setPreferredSize(new Dimension(80, 25));
         
         newGroupBtn = new JButton("新建");
         renameGroupBtn = new JButton("重命名");
         deleteGroupBtn = new JButton("删除");
         
-        // 设置按钮大小一致，确保所有按钮都能显示
-        Dimension buttonSize = new Dimension(60, 25);
+        // 设置按钮大小，确保在Windows下也能完整显示
+        Dimension buttonSize = new Dimension(80, 25);
         newGroupBtn.setPreferredSize(buttonSize);
-        renameGroupBtn.setPreferredSize(new Dimension(70, 25)); // 重命名稍宽
+        renameGroupBtn.setPreferredSize(new Dimension(80, 25)); // 重命名稍宽
         deleteGroupBtn.setPreferredSize(buttonSize);
         
-        // 按顺序添加所有组件，使用最小间距
-        groupPanel.add(groupLabel);
-        groupPanel.add(payloadGroupComboBox);
-        groupPanel.add(newGroupNameField);
-        groupPanel.add(newGroupBtn);
-        groupPanel.add(renameGroupBtn);
-        groupPanel.add(deleteGroupBtn);
+        // 第一行：标签和下拉框
+        gbcGroup.gridx = 0; gbcGroup.gridy = 0;
+        groupPanel.add(groupLabel, gbcGroup);
+        gbcGroup.gridx = 1;
+        groupPanel.add(payloadGroupComboBox, gbcGroup);
+        gbcGroup.gridx = 2;
+        groupPanel.add(newGroupNameField, gbcGroup);
+        
+        // 第二行：按钮组
+        gbcGroup.gridx = 0; gbcGroup.gridy = 1;
+        groupPanel.add(newGroupBtn, gbcGroup);
+        gbcGroup.gridx = 1;
+        groupPanel.add(renameGroupBtn, gbcGroup);
+        gbcGroup.gridx = 2;
+        groupPanel.add(deleteGroupBtn, gbcGroup);
 
         // 创建顶部控制面板 - 优化间距
         JPanel topControlPanel = new JPanel();
@@ -495,10 +507,22 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
 
         // 第三个标签页：自定义报错信息
         JPanel customErrorPanel = new JPanel(new BorderLayout());
+        customErrorPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
         enableCustomErrorCheckBox = new JCheckBox("启用自定义报错信息（配置文件：" + CONFIG_DIR + "/xia_SQL_diy_error.ini）", true);
-        customErrorPanel.add(enableCustomErrorCheckBox, BorderLayout.NORTH);
+        // 确保复选框在Windows下能完整显示
+        enableCustomErrorCheckBox.setPreferredSize(new Dimension(400, 25));
+        
+        JPanel errorCheckPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        errorCheckPanel.add(enableCustomErrorCheckBox);
+        customErrorPanel.add(errorCheckPanel, BorderLayout.NORTH);
 
         JPanel errorTextPanel = new JPanel(new BorderLayout());
+        errorTextPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+        
+        JLabel errorLabel = new JLabel("报错关键字配置 (每行一个关键字或正则表达式)");
+        errorLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
+        
         errorKeywordsTextArea = new JTextArea("ORA-\\d{5}\nSQL syntax.*?MySQL\nUnknown column\nSQL syntax\njava.sql.SQLSyntaxErrorException\nError SQL:\nSyntax error\n附近有语法错误\njava.sql.SQLException\n引号不完整\nSystem.Exception: SQL Execution Error!\ncom.mysql.jdbc\nMySQLSyntaxErrorException\nvalid MySQL result\nyour MySQL server version\nMySqlClient\nMySqlException\nvalid PostgreSQL result\nPG::SyntaxError:\norg.postgresql.jdbc\nPSQLException\nMicrosoft SQL Native Client error\nODBC SQL Server Driver\nSQLServer JDBC Driver\ncom.jnetdirect.jsql\nmacromedia.jdbc.sqlserver\ncom.microsoft.sqlserver.jdbc\nMicrosoft Access\nAccess Database Engine\nODBC Microsoft Access\nOracle error\nDB2 SQL error\nSQLite error\nSybase message\nSybSQLException", 18, 16);
 
         // 读取自定义报错信息配置文件
@@ -524,17 +548,17 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         errorKeywordsTextArea.setEditable(true);
         JScrollPane errorScrollPane = new JScrollPane(errorKeywordsTextArea);
 
-        JLabel errorLabel = new JLabel("每行一个报错关键字（用于匹配响应内容）");
         saveErrorBtn = new JButton("保存报错信息配置");
+        // 确保按钮在Windows下能完整显示
+        saveErrorBtn.setPreferredSize(new Dimension(150, 30));
+        
         JPanel errorButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         errorButtonPanel.add(saveErrorBtn);
         
-        JPanel errorLabelPanel = new JPanel(new BorderLayout());
-        errorLabelPanel.add(errorLabel, BorderLayout.WEST);
-        errorLabelPanel.add(errorButtonPanel, BorderLayout.EAST);
-        
-        errorTextPanel.add(errorLabelPanel, BorderLayout.NORTH);
+        errorTextPanel.add(errorLabel, BorderLayout.NORTH);
         errorTextPanel.add(errorScrollPane, BorderLayout.CENTER);
+        errorTextPanel.add(errorButtonPanel, BorderLayout.SOUTH);
+        
         customErrorPanel.add(errorTextPanel, BorderLayout.CENTER);
 
         // 第四个标签页：响应时间阈值配置
@@ -591,7 +615,7 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         JPanel urlConfigPanel = new JPanel(new BorderLayout());
         JLabel urlListLabel = new JLabel("黑名单URL路径 (每行一个路径，支持通配符)");
         urlListLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
-        blackListUrlTextArea = new JTextArea("/admin/*\n/static/*\n*.css\n*.js\n*.jpg\n*.png", 15, 20);
+        blackListUrlTextArea = new JTextArea("/admin/*\n/static/*\n*.css\n*.js\n*.jpg\n*.jpeg\n*.png\n*.gif\n*.bmp\n*.svg\n*.ico\n*.woff\n*.woff2", 15, 20);
         blackListUrlTextArea.setForeground(Color.BLACK);
         blackListUrlTextArea.setFont(new Font("宋体", Font.PLAIN, 13));
         blackListUrlTextArea.setBackground(Color.WHITE);
@@ -616,8 +640,9 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         whiteTabbedPane.addTab("长度差异配置", lengthDiffPanel);
         whiteTabbedPane.addTab("黑名单URL过滤", blackListUrlPanel);
 
-        // 将标签页添加到控制面板的中心区域
-        controlPanel.add(whiteTabbedPane, BorderLayout.CENTER);
+        // 将标签页从控制面板中移除，因为它会单独放在splitPanes2的底部
+        // controlPanel只包含控制选项，不包含标签页
+        // controlPanel.add(whiteTabbedPane, BorderLayout.SOUTH); // 注释掉这行
 
         
 
@@ -663,21 +688,27 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         api.userInterface().applyThemeToComponent(rightTablePanel);
         api.userInterface().applyThemeToComponent(whiteTabbedPane);
 
-        // 优化布局 - 防止控制面板意外变大
-        splitPanes2.setLeftComponent(controlPanel); // 上面
-        splitPanes2.setRightComponent(whiteTabbedPane); // 下面
-        splitPanes2.setDividerLocation(240); // 控制面板高度240像素
+        // 恢复正确的三层布局结构
+        // 第一层：splitPanes2 - 右侧面板的上下分割（控制面板 + 标签页）
+        splitPanes2.setTopComponent(controlPanel); // 上面：控制面板
+        splitPanes2.setBottomComponent(whiteTabbedPane); // 下面：标签页
+        splitPanes2.setOrientation(JSplitPane.VERTICAL_SPLIT);
+        splitPanes2.setDividerLocation(280); // 控制面板高度280像素
         splitPanes2.setResizeWeight(0.0); // 控制面板固定大小
 
-        splitPanes.setLeftComponent(mainPanel); // 上面
-        splitPanes.setRightComponent(requestResponseSplitPane); // 下面，使用新的分割面板
-        splitPanes.setDividerLocation(350); // 表格区域高度350像素
+        // 第二层：splitPanes - 主内容区域的上下分割（表格 + 请求响应）
+        splitPanes.setTopComponent(mainPanel); // 上面：主表格区域
+        splitPanes.setBottomComponent(requestResponseSplitPane); // 下面：请求响应查看器
+        splitPanes.setOrientation(JSplitPane.VERTICAL_SPLIT);
+        splitPanes.setDividerLocation(400); // 表格区域高度400像素
         splitPanes.setResizeWeight(0.6); // 表格区域占60%
 
-        splitPane.setLeftComponent(splitPanes); // 添加在左面（主要内容区域）
-        splitPane.setRightComponent(splitPanes2); // 添加在右面（配置区域）
-        splitPane.setDividerLocation(1000); // 主要内容区域宽度1000像素
-        splitPane.setResizeWeight(0.8); // 左侧内容区域优先获得空间
+        // 第三层：splitPane - 整体的左右分割（主内容 + 右侧面板）
+        splitPane.setLeftComponent(splitPanes); // 左侧：主内容区域
+        splitPane.setRightComponent(splitPanes2); // 右侧：控制面板+标签页
+        splitPane.setOrientation(JSplitPane.HORIZONTAL_SPLIT);
+        splitPane.setDividerLocation(1000); // 主内容区域宽度1000像素
+        splitPane.setResizeWeight(0.75); // 左侧内容区域占75%
         
         // 设置分割面板的最小和最大尺寸，防止意外拖拽
         splitPanes2.setMinimumSize(new Dimension(250, 400)); // 右侧最小宽度250像素
@@ -685,6 +716,38 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
 
         // 注册标签页
         api.userInterface().registerSuiteTab("DouSQL", splitPane);
+    }
+
+    // Windows系统UI优化
+    private void optimizeUIForWindows() {
+        try {
+            // 检测操作系统
+            String osName = System.getProperty("os.name").toLowerCase();
+            if (osName.contains("windows")) {
+                // 优化DPI设置
+                System.setProperty("sun.java2d.dpiaware", "true");
+                System.setProperty("sun.java2d.uiScale", "1.0");
+                
+                // 设置字体渲染优化
+                System.setProperty("awt.useSystemAAFontSettings", "on");
+                System.setProperty("swing.aatext", "true");
+                
+                // 设置Swing组件的默认字体大小
+                java.util.Enumeration<Object> keys = UIManager.getDefaults().keys();
+                while (keys.hasMoreElements()) {
+                    Object key = keys.nextElement();
+                    Object value = UIManager.get(key);
+                    if (value instanceof Font) {
+                        Font font = (Font) value;
+                        UIManager.put(key, new Font(font.getName(), font.getStyle(), Math.max(font.getSize(), 12)));
+                    }
+                }
+                
+                api.logging().logToOutput("已应用Windows系统UI优化");
+            }
+        } catch (Exception e) {
+            api.logging().logToOutput("Windows UI优化失败: " + e.getMessage());
+        }
     }
 
     private void setupEventListeners() {
@@ -1475,44 +1538,149 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         }
     }
 
-    // 改进的JSON值替换方法，支持多种数据类型
+    // 使用Burp Suite内置JsonUtils的JSON值替换方法
     private String replaceJsonValue(String jsonBody, String paramName, String newValue) {
         try {
-            // 转义参数名中的特殊字符
-            String escapedParamName = paramName.replaceAll("([\\[\\]{}()*+?.\\\\^$|])", "\\\\$1");
+            JsonUtils jsonUtils = api.utilities().jsonUtils();
             
-            // 尝试多种JSON值格式的替换
-            String[] patterns = {
-                // 字符串值: "paramName": "value"
-                "\\\"" + escapedParamName + "\\\"\\s*:\\s*\\\"[^\\\"]*\\\"",
-                // 数字值: "paramName": 123
-                "\\\"" + escapedParamName + "\\\"\\s*:\\s*[0-9]+\\.?[0-9]*",
-                // 布尔值: "paramName": true/false
-                "\\\"" + escapedParamName + "\\\"\\s*:\\s*(true|false)",
-                // null值: "paramName": null
-                "\\\"" + escapedParamName + "\\\"\\s*:\\s*null",
-                // 数组值: "paramName": [...]
-                "\\\"" + escapedParamName + "\\\"\\s*:\\s*\\[[^\\]]*\\]",
-                // 对象值: "paramName": {...}
-                "\\\"" + escapedParamName + "\\\"\\s*:\\s*\\{[^\\}]*\\}"
-            };
-            
-            String replacement = "\\\"" + paramName + "\\\": \\\"" + newValue + "\\\"";
-            
-            for (String pattern : patterns) {
-                String modifiedJson = jsonBody.replaceAll(pattern, replacement);
-                if (!modifiedJson.equals(jsonBody)) {
-                    api.logging().logToOutput("  -> JSON替换成功，使用模式: " + pattern);
-                    return modifiedJson;
-                }
+            // 验证JSON格式
+            if (!jsonUtils.isValidJson(jsonBody)) {
+                api.logging().logToOutput("  -> 无效的JSON格式");
+                return jsonBody;
             }
             
-            api.logging().logToOutput("  -> 所有JSON替换模式都失败");
-            return jsonBody;
+            // 查找并替换参数
+            java.util.List<String> foundPaths = findJsonPaths(jsonBody, paramName);
+            
+            if (foundPaths.isEmpty()) {
+                api.logging().logToOutput("  -> 未找到参数: " + paramName);
+                return jsonBody;
+            }
+            
+            // 使用第一个找到的路径进行替换
+            String path = foundPaths.get(0);
+            String modifiedJson = jsonUtils.update(jsonBody, path, "\"" + newValue + "\"");
+            api.logging().logToOutput("  -> JSON替换成功，路径: " + path);
+            
+            return modifiedJson;
             
         } catch (Exception e) {
-            api.logging().logToOutput("  -> JSON替换异常: " + e.getMessage());
+            api.logging().logToOutput("  -> JSON处理异常: " + e.getMessage());
             return jsonBody;
+        }
+    }
+    
+    // 查找JSON中所有匹配参数名的路径
+    private java.util.List<String> findJsonPaths(String jsonBody, String paramName) {
+        java.util.List<String> paths = new java.util.ArrayList<>();
+        
+        try {
+            JsonNode rootNode = JsonNode.jsonNode(jsonBody);
+            findJsonPathsRecursive(rootNode, "", paramName, paths);
+        } catch (Exception e) {
+            api.logging().logToOutput("  -> 查找JSON路径异常: " + e.getMessage());
+        }
+        
+        return paths;
+    }
+    
+    // 递归查找JSON路径
+    private void findJsonPathsRecursive(JsonNode node, String currentPath, String targetParam, java.util.List<String> paths) {
+        try {
+            if (node.isObject()) {
+                JsonObjectNode objectNode = node.asObject();
+                
+                // 遍历对象的所有键
+                for (String key : objectNode.asMap().keySet()) {
+                    String newPath = currentPath.isEmpty() ? key : currentPath + "." + key;
+                    
+                    // 如果键名匹配目标参数，添加路径
+                    if (key.equals(targetParam)) {
+                        paths.add(newPath);
+                    }
+                    
+                    // 递归处理值
+                    JsonNode childNode = objectNode.get(key);
+                    if (childNode != null) {
+                        findJsonPathsRecursive(childNode, newPath, targetParam, paths);
+                    }
+                }
+            } else if (node.isArray()) {
+                JsonArrayNode arrayNode = node.asArray();
+                
+                // 遍历数组的所有元素
+                for (int i = 0; i < arrayNode.asList().size(); i++) {
+                    String newPath = currentPath + "[" + i + "]";
+                    JsonNode childNode = arrayNode.get(i);
+                    if (childNode != null) {
+                        findJsonPathsRecursive(childNode, newPath, targetParam, paths);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            api.logging().logToOutput("  -> 递归查找路径异常: " + e.getMessage());
+        }
+    }
+    
+    // JSON结构信息类
+    private static class JsonStructureInfo {
+        boolean hasNestedObjects = false;
+        boolean hasArrays = false;
+        int maxDepth = 0;
+        int objectCount = 0;
+        int arrayCount = 0;
+    }
+    
+    // 分析JSON结构的复杂度
+    private JsonStructureInfo analyzeJsonStructure(String json) {
+        JsonStructureInfo info = new JsonStructureInfo();
+        
+        try {
+            JsonNode rootNode = JsonNode.jsonNode(json);
+            analyzeJsonNodeRecursive(rootNode, 0, info);
+        } catch (Exception e) {
+            api.logging().logToOutput("JSON结构分析异常: " + e.getMessage());
+        }
+        
+        return info;
+    }
+    
+    // 递归分析JSON节点结构
+    private void analyzeJsonNodeRecursive(JsonNode node, int currentDepth, JsonStructureInfo info) {
+        if (currentDepth > 20) { // 防止无限递归
+            return;
+        }
+        
+        info.maxDepth = Math.max(info.maxDepth, currentDepth);
+        
+        try {
+            if (node.isObject()) {
+                info.objectCount++;
+                if (currentDepth > 0) {
+                    info.hasNestedObjects = true;
+                }
+                
+                JsonObjectNode objectNode = node.asObject();
+                for (String key : objectNode.asMap().keySet()) {
+                    JsonNode childNode = objectNode.get(key);
+                    if (childNode != null) {
+                        analyzeJsonNodeRecursive(childNode, currentDepth + 1, info);
+                    }
+                }
+            } else if (node.isArray()) {
+                info.arrayCount++;
+                info.hasArrays = true;
+                
+                JsonArrayNode arrayNode = node.asArray();
+                for (int i = 0; i < arrayNode.asList().size(); i++) {
+                    JsonNode childNode = arrayNode.get(i);
+                    if (childNode != null) {
+                        analyzeJsonNodeRecursive(childNode, currentDepth + 1, info);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            api.logging().logToOutput("递归分析异常: " + e.getMessage());
         }
     }
 
@@ -1523,6 +1691,8 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
             return;
         }
 
+        String md5Data = null; // 声明在try块外面，这样catch块也能访问
+        
         try {
             HttpRequest request = baseRequestResponse.request();
             String url = request.url();
@@ -1563,7 +1733,9 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
 
             // 静态文件检查
             if (toolFlag == 4 || toolFlag == 64) { // Proxy或Repeater
-                String[] staticFiles = {"jpg", "png", "gif", "css", "js", "pdf", "mp3", "mp4", "avi"};
+                String[] staticFiles = {"jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "webp", "svg", "ico", 
+                                       "css", "js", "pdf", "mp3", "mp4", "avi", "mov", "wmv", "flv", "mkv", 
+                                       "woff", "woff2", "ttf", "eot", "otf", "zip", "rar", "7z", "tar", "gz"};
                 String[] urlParts = url.split("\\.");
                 if (urlParts.length > 1) {
                     String extension = urlParts[urlParts.length - 1].toLowerCase();
@@ -1596,7 +1768,7 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
                     }
                     tempData += "+" + para.name();
 
-                    // JSON嵌套检测 
+                    // 改进的JSON嵌套检测
                     if (type == HttpParameterType.JSON && request.hasParameters(HttpParameterType.JSON)) {
                         if (requestData == null) {
                             try {
@@ -1604,18 +1776,16 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
                                 // 检测JSON嵌套
                                 if (requestData != null) {
                                     api.logging().logToOutput("JSON数据：" + requestData);
-                                    requestDatas = requestData.split("\\{");
-                                    if (requestDatas.length > 2) {
+                                    
+                                    // 更准确的JSON结构分析
+                                    JsonStructureInfo structureInfo = analyzeJsonStructure(requestData);
+                                    
+                                    if (structureInfo.hasNestedObjects || structureInfo.hasArrays || structureInfo.maxDepth > 1) {
                                         isAdd = 2;
                                         jsonCount++;
-                                        api.logging().logToOutput("发现JSON嵌套");
-                                    }
-                                    // 检测JSON中的列表
-                                    requestDatas = requestData.split("\":\\[");
-                                    if (requestDatas.length > 1) {
-                                        isAdd = 2;
-                                        jsonCount++;
-                                        api.logging().logToOutput("发现JSON列表");
+                                        api.logging().logToOutput("发现复杂JSON结构 - 嵌套对象: " + structureInfo.hasNestedObjects + 
+                                                                ", 数组: " + structureInfo.hasArrays + 
+                                                                ", 最大深度: " + structureInfo.maxDepth);
                                     }
                                 }
                             } catch (Exception e) {
@@ -1629,7 +1799,7 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
             // 添加HTTP方法 
             tempData += "+" + request.method();
             api.logging().logToOutput("\\nMD5(\"" + tempData + "\")");
-            String md5Data = MD5(tempData);
+            md5Data = MD5(tempData);
             api.logging().logToOutput(md5Data);
             api.logging().logToOutput("原始URL：" + url);
             api.logging().logToOutput("处理后的tempData：" + tempData);
@@ -1766,6 +1936,19 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
         } catch (Exception e) {
             api.logging().logToOutput("checkVul错误：" + e.getMessage());
             e.printStackTrace();
+            
+            // 异常情况下也要更新状态为完成
+            try {
+                for (int i = 0; i < log.size(); i++) {
+                    if (md5Data.equals(log.get(i).dataMd5)) {
+                        log.get(i).setState("end!");
+                        fireTableDataChanged();
+                        break;
+                    }
+                }
+            } catch (Exception ex) {
+                api.logging().logToOutput("更新异常状态失败：" + ex.getMessage());
+            }
         }
     }
 
@@ -2186,6 +2369,8 @@ public class DouSqlPluginComplete implements BurpExtension, HttpHandler, Context
                 case 1:
                     // 转换工具来源
                     if (logEntry.tool == 4) return "Proxy";
+                    else if (logEntry.tool == 16) return "Scanner";
+                    else if (logEntry.tool == 32) return "Intruder";
                     else if (logEntry.tool == 64) return "Repeater";
                     else if (logEntry.tool == 1024) return "Menu";
                     else return String.valueOf(logEntry.tool);
