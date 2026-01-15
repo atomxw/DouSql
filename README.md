@@ -12,8 +12,7 @@
 
 ### 核心检测功能
 - **多种SQL注入检测**：支持报错注入、时间盲注、布尔盲注等多种检测方式
-- **智能payload管理**：内置7个专业payload组，支持自定义payload配置
-- **丰富的默认字典**：包含300+个专业SQL注入payload，涵盖MySQL、MSSQL、Oracle、PostgreSQL等多种数据库
+- **智能payload管理**：内置7个payload组，包含Mysql、Mssql、Oracle等。
 - **实时响应分析**：自动分析响应长度、时间、状态码等关键指标
 - **全面的报错信息识别**：内置33种数据库和框架的错误信息模式，支持MySQL、Oracle、PostgreSQL、SQL Server、SQLite等
 - **增强JSON处理**：使用Burp Suite内置API处理复杂嵌套JSON结构，支持任意深度的对象、数组和混合数据类型
