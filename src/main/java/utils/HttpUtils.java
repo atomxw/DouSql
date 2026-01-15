@@ -962,30 +962,128 @@ public class HttpUtils {
     
     /**
      * 在JSON数组中注入payload
+     * 修改数组的第一个元素，将其转换为字符串并追加payload
      */
     private String injectPayloadIntoJsonArray(String jsonBody, String paramName, String originalArrayValue, String payload) {
         try {
-            // callbacks.printOutput("  -> 处理JSON数组参数: " + paramName);
-            // callbacks.printOutput("  -> 原始数组值: " + originalArrayValue);
+            callbacks.printOutput("  -> 处理JSON数组参数: " + paramName);
+            callbacks.printOutput("  -> 原始数组值: " + originalArrayValue);
+            callbacks.printOutput("  -> Payload: " + payload);
             
             // 解析数组内容
             String arrayContent = originalArrayValue.substring(1, originalArrayValue.length() - 1).trim();
             
             if (arrayContent.isEmpty()) {
-                // 空数组，直接添加payload
-                String newArrayValue = "[" + payload + "]";
+                // 空数组，直接添加payload作为字符串
+                String newArrayValue = "[\"" + escapeJsonValue(payload) + "\"]";
+                callbacks.printOutput("  -> 空数组，新值: " + newArrayValue);
                 return replaceJsonValue(jsonBody, paramName, originalArrayValue, newArrayValue);
             } else {
-                // 非空数组，在最后添加payload
-                String newArrayValue = "[" + arrayContent + "," + payload + "]";
+                // 非空数组，修改第一个元素
+                // 分割数组元素
+                String[] elements = splitJsonArrayElements(arrayContent);
+                
+                if (elements.length == 0) {
+                    // 无法解析数组元素，降级处理
+                    callbacks.printOutput("  -> 无法解析数组元素，使用降级处理");
+                    return replaceJsonValue(jsonBody, paramName, originalArrayValue, "\"" + escapeJsonValue(payload) + "\"");
+                }
+                
+                // 获取第一个元素
+                String firstElement = elements[0].trim();
+                callbacks.printOutput("  -> 第一个元素: " + firstElement);
+                
+                // 将第一个元素转换为字符串（如果是数字）并追加payload
+                String firstElementValue;
+                if (firstElement.startsWith("\"") && firstElement.endsWith("\"")) {
+                    // 已经是字符串，去掉引号
+                    firstElementValue = firstElement.substring(1, firstElement.length() - 1);
+                } else {
+                    // 是数字或其他类型，直接使用
+                    firstElementValue = firstElement;
+                }
+                
+                // 构建新的第一个元素：原值 + payload，作为字符串
+                String newFirstElement = "\"" + escapeJsonValue(firstElementValue + payload) + "\"";
+                callbacks.printOutput("  -> 新的第一个元素: " + newFirstElement);
+                
+                // 重新构建数组
+                StringBuilder newArrayBuilder = new StringBuilder("[");
+                newArrayBuilder.append(newFirstElement);
+                
+                // 添加其余元素
+                for (int i = 1; i < elements.length; i++) {
+                    newArrayBuilder.append(",").append(elements[i]);
+                }
+                newArrayBuilder.append("]");
+                
+                String newArrayValue = newArrayBuilder.toString();
+                callbacks.printOutput("  -> 新数组值: " + newArrayValue);
+                
                 return replaceJsonValue(jsonBody, paramName, originalArrayValue, newArrayValue);
             }
             
         } catch (Exception e) {
             callbacks.printError("处理JSON数组失败: " + e.getMessage());
+            e.printStackTrace();
             // 降级处理：直接替换为字符串（保持原有行为）
-            return replaceJsonValue(jsonBody, paramName, originalArrayValue, "\"" + payload + "\"");
+            return replaceJsonValue(jsonBody, paramName, originalArrayValue, "\"" + escapeJsonValue(payload) + "\"");
         }
+    }
+    
+    /**
+     * 分割JSON数组元素（简单实现，处理基本情况）
+     */
+    private String[] splitJsonArrayElements(String arrayContent) {
+        List<String> elements = new ArrayList<>();
+        StringBuilder currentElement = new StringBuilder();
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        
+        for (int i = 0; i < arrayContent.length(); i++) {
+            char c = arrayContent.charAt(i);
+            
+            if (escaped) {
+                currentElement.append(c);
+                escaped = false;
+                continue;
+            }
+            
+            if (c == '\\') {
+                escaped = true;
+                currentElement.append(c);
+                continue;
+            }
+            
+            if (c == '"') {
+                inString = !inString;
+                currentElement.append(c);
+                continue;
+            }
+            
+            if (!inString) {
+                if (c == '[' || c == '{') {
+                    depth++;
+                } else if (c == ']' || c == '}') {
+                    depth--;
+                } else if (c == ',' && depth == 0) {
+                    // 找到元素分隔符
+                    elements.add(currentElement.toString().trim());
+                    currentElement = new StringBuilder();
+                    continue;
+                }
+            }
+            
+            currentElement.append(c);
+        }
+        
+        // 添加最后一个元素
+        if (currentElement.length() > 0) {
+            elements.add(currentElement.toString().trim());
+        }
+        
+        return elements.toArray(new String[0]);
     }
     
     /**
