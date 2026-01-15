@@ -9,6 +9,9 @@
 **DouSql** 是基于Xia Sql二次开发的高度自定义化SQL注入检测插件，专为安全研究人员和渗透测试工程师打造。
 
 ## 主要功能
+<img width="3012" height="1628" alt="image" src="https://github.com/user-attachments/assets/936e5d1b-9103-40b3-8286-cc91d60eb4ca" />
+<img width="2992" height="1602" alt="image" src="https://github.com/user-attachments/assets/94cc3688-22af-4d64-b5bb-47e1970bf07b" />
+
 
 ### 核心检测功能
 - **多种SQL注入检测**：支持报错注入、时间盲注、布尔盲注等多种检测方式
