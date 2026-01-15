@@ -973,13 +973,36 @@ public class HttpUtils {
     
     /**
      * 在JSON数组中注入payload
-     * 修改数组的第一个元素，将其转换为字符串并追加payload
+     * 修改数组中的特定元素，将其转换为字符串并追加payload
+     * 
+     * @param jsonBody JSON请求体
+     * @param paramName 参数名（可能包含数组索引，如 role_permissions[0]）
+     * @param originalArrayValue 原始数组值
+     * @param payload 要注入的payload
+     * @return 修改后的JSON请求体
      */
     private String injectPayloadIntoJsonArray(String jsonBody, String paramName, String originalArrayValue, String payload) {
         try {
             callbacks.printOutput("  -> 处理JSON数组参数: " + paramName);
             callbacks.printOutput("  -> 原始数组值: " + originalArrayValue);
             callbacks.printOutput("  -> Payload: " + payload);
+            
+            // 检查参数名是否包含数组索引（如 role_permissions[0]）
+            int arrayIndex = -1;
+            String baseParamName = paramName;
+            
+            if (paramName.contains("[") && paramName.contains("]")) {
+                // 提取数组索引
+                int startIdx = paramName.indexOf("[");
+                int endIdx = paramName.indexOf("]");
+                try {
+                    arrayIndex = Integer.parseInt(paramName.substring(startIdx + 1, endIdx));
+                    baseParamName = paramName.substring(0, startIdx);
+                    callbacks.printOutput("  -> 检测到数组索引: " + arrayIndex + ", 基础参数名: " + baseParamName);
+                } catch (NumberFormatException e) {
+                    callbacks.printOutput("  -> 无法解析数组索引，将作为普通参数处理");
+                }
+            }
             
             // 解析数组内容
             String arrayContent = originalArrayValue.substring(1, originalArrayValue.length() - 1).trim();
@@ -988,51 +1011,66 @@ public class HttpUtils {
                 // 空数组，直接添加payload作为字符串
                 String newArrayValue = "[\"" + escapeJsonValue(payload) + "\"]";
                 callbacks.printOutput("  -> 空数组，新值: " + newArrayValue);
-                return replaceJsonValue(jsonBody, paramName, originalArrayValue, newArrayValue);
-            } else {
-                // 非空数组，修改第一个元素
-                // 分割数组元素
-                String[] elements = splitJsonArrayElements(arrayContent);
-                
-                if (elements.length == 0) {
-                    // 无法解析数组元素，降级处理
-                    callbacks.printOutput("  -> 无法解析数组元素，使用降级处理");
-                    return replaceJsonValue(jsonBody, paramName, originalArrayValue, "\"" + escapeJsonValue(payload) + "\"");
-                }
-                
-                // 获取第一个元素
-                String firstElement = elements[0].trim();
-                callbacks.printOutput("  -> 第一个元素: " + firstElement);
-                
-                // 将第一个元素转换为字符串（如果是数字）并追加payload
-                String firstElementValue;
-                if (firstElement.startsWith("\"") && firstElement.endsWith("\"")) {
-                    // 已经是字符串，去掉引号
-                    firstElementValue = firstElement.substring(1, firstElement.length() - 1);
-                } else {
-                    // 是数字或其他类型，直接使用
-                    firstElementValue = firstElement;
-                }
-                
-                // 构建新的第一个元素：原值 + payload，作为字符串
-                String newFirstElement = "\"" + escapeJsonValue(firstElementValue + payload) + "\"";
-                callbacks.printOutput("  -> 新的第一个元素: " + newFirstElement);
-                
-                // 重新构建数组
-                StringBuilder newArrayBuilder = new StringBuilder("[");
-                newArrayBuilder.append(newFirstElement);
-                
-                // 添加其余元素
-                for (int i = 1; i < elements.length; i++) {
-                    newArrayBuilder.append(",").append(elements[i]);
-                }
-                newArrayBuilder.append("]");
-                
-                String newArrayValue = newArrayBuilder.toString();
-                callbacks.printOutput("  -> 新数组值: " + newArrayValue);
-                
-                return replaceJsonValue(jsonBody, paramName, originalArrayValue, newArrayValue);
+                return replaceJsonValue(jsonBody, baseParamName, originalArrayValue, newArrayValue);
             }
+            
+            // 分割数组元素
+            String[] elements = splitJsonArrayElements(arrayContent);
+            
+            if (elements.length == 0) {
+                // 无法解析数组元素，降级处理
+                callbacks.printOutput("  -> 无法解析数组元素，使用降级处理");
+                return replaceJsonValue(jsonBody, baseParamName, originalArrayValue, "\"" + escapeJsonValue(payload) + "\"");
+            }
+            
+            // 确定要修改的元素索引
+            int targetIndex = arrayIndex >= 0 ? arrayIndex : 0; // 如果没有指定索引，默认修改第一个元素
+            
+            if (targetIndex >= elements.length) {
+                callbacks.printOutput("  -> 警告：数组索引 " + targetIndex + " 超出范围（数组长度: " + elements.length + "）");
+                targetIndex = 0; // 降级到第一个元素
+            }
+            
+            callbacks.printOutput("  -> 将修改数组的第 " + targetIndex + " 个元素");
+            callbacks.printOutput("  -> 原始元素值: " + elements[targetIndex]);
+            
+            // 获取目标元素的值
+            String targetElement = elements[targetIndex].trim();
+            String targetElementValue;
+            
+            if (targetElement.startsWith("\"") && targetElement.endsWith("\"")) {
+                // 已经是字符串，去掉引号
+                targetElementValue = targetElement.substring(1, targetElement.length() - 1);
+            } else {
+                // 是数字或其他类型，直接使用
+                targetElementValue = targetElement;
+            }
+            
+            // 构建新的元素值：原值 + payload，作为字符串
+            String newElement = "\"" + escapeJsonValue(targetElementValue + payload) + "\"";
+            callbacks.printOutput("  -> 新元素值: " + newElement);
+            
+            // 重新构建数组
+            StringBuilder newArrayBuilder = new StringBuilder("[");
+            for (int i = 0; i < elements.length; i++) {
+                if (i > 0) {
+                    newArrayBuilder.append(",");
+                }
+                
+                if (i == targetIndex) {
+                    // 使用新的元素值
+                    newArrayBuilder.append(newElement);
+                } else {
+                    // 保持原有元素
+                    newArrayBuilder.append(elements[i]);
+                }
+            }
+            newArrayBuilder.append("]");
+            
+            String newArrayValue = newArrayBuilder.toString();
+            callbacks.printOutput("  -> 新数组值: " + newArrayValue);
+            
+            return replaceJsonValue(jsonBody, baseParamName, originalArrayValue, newArrayValue);
             
         } catch (Exception e) {
             callbacks.printError("处理JSON数组失败: " + e.getMessage());
