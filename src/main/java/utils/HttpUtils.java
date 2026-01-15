@@ -2448,7 +2448,7 @@ public class HttpUtils {
     
     /**
      * 手动构建请求 - 用于处理Burp的updateParameter不支持的参数类型
-     * 特别是JSON数组根元素的情况
+     * 特别是JSON数组参数的情况
      */
     private byte[] buildRequestManually(byte[] originalRequest, IParameter param, String newValue) {
         try {
@@ -2484,8 +2484,29 @@ public class HttpUtils {
                 return originalRequest;
             }
             
-            // 尝试替换JSON中的参数值
-            String newBody = replaceJsonParameterInBody(body, param.getName(), param.getValue(), newValue);
+            // 获取原始参数值
+            String originalValue = getOriginalJsonValue(body, param.getName());
+            String newBody = body;
+            
+            if (originalValue != null) {
+                callbacks.printOutput("  -> 找到原始参数值: " + originalValue);
+                
+                // 检查原始值是否是数组格式
+                boolean isArray = isJsonArray(originalValue);
+                callbacks.printOutput("  -> 参数是否为数组: " + isArray);
+                
+                if (isArray) {
+                    // 数组参数：修改数组的第一个元素
+                    newBody = injectPayloadIntoJsonArray(body, param.getName(), originalValue, newValue);
+                } else {
+                    // 普通参数：直接替换值
+                    newBody = replaceJsonValue(body, param.getName(), originalValue, newValue);
+                }
+            } else {
+                callbacks.printOutput("  -> 未找到参数，尝试直接替换");
+                // 如果没有找到匹配，尝试使用旧的替换方法
+                newBody = replaceJsonParameterInBody(body, param.getName(), param.getValue(), newValue);
+            }
             
             if (newBody.equals(body)) {
                 callbacks.printOutput("  -> JSON参数替换失败，body未改变");
