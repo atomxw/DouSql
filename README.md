@@ -12,8 +12,8 @@
 
 ### 核心检测功能
 - **多种SQL注入检测**：支持报错注入、时间盲注、布尔盲注等多种检测方式
-- **智能payload管理**：内置多种payload组，支持自定义payload配置
-- **丰富的默认字典**：包含18种常用SQL注入payload，涵盖时间盲注、布尔盲注、报错注入等
+- **智能payload管理**：内置7个专业payload组，支持自定义payload配置
+- **丰富的默认字典**：包含300+个专业SQL注入payload，涵盖MySQL、MSSQL、Oracle、PostgreSQL等多种数据库
 - **实时响应分析**：自动分析响应长度、时间、状态码等关键指标
 - **全面的报错信息识别**：内置33种数据库和框架的错误信息模式，支持MySQL、Oracle、PostgreSQL、SQL Server、SQLite等
 - **增强JSON处理**：使用Burp Suite内置API处理复杂嵌套JSON结构，支持任意深度的对象、数组和混合数据类型
@@ -40,16 +40,18 @@
 
 ### 用户界面特性
 - **双面板设计**：左侧显示扫描结果，右侧显示参数测试详情
-- **实时状态更新**：支持报错标记(err)、时间超时标记(time)等状态显示
+- **实时状态更新**：支持报错标记(err)、时间超时标记(time)、长度差异标记(diff)等状态显示
+- **停止测试功能**：右键点击扫描结果中的URL，可选择停止该URL的测试
+- **删除测试结果**：右键点击扫描结果，可删除单个结果；清空所有结果可使用控制面板的"清空列表"按钮
 - **配置持久化**：所有配置自动保存，重启后自动恢复
 - **Windows系统优化**：针对Windows系统进行UI布局优化，确保所有按钮和组件完整显示
 
 ### 工具集成
-- **智能右键菜单**：支持payload组选择的右键菜单，可选择使用当前组或指定特定payload组进行测试
+- **智能右键菜单**：支持payload组选择、停止测试、删除结果等多种操作
 - **选择性监控**：默认只监控Proxy和Repeater的流量，需要手动启用对应的监控选项
 - **自动检测**：通过右键菜单发送的请求会自动进行检测
 - **多格式参数支持**：支持URL参数、POST参数、JSON参数、XML参数、Cookie参数等
-- **灵活测试策略**：可根据不同场景选择合适的payload组，如时间盲注场景使用timebased组，报错注入场景使用orderby组
+- **灵活测试策略**：可根据不同场景选择合适的payload组，如盲注场景使用blind-injection-fuzz组，登录场景使用login-password-injection-fuzz组，WAF绕过使用union-select-bypass组
 
 ### 监控模式说明
 - **Proxy监控**：启用后自动检测通过Proxy的所有HTTP流量
@@ -57,7 +59,7 @@
 - **Scanner/Intruder**：默认不自动监控，可通过右键菜单手动发送到插件
 - **右键发送**：所有工具都支持通过右键菜单发送请求到插件进行检测
   - **使用当前组**：使用插件界面当前选中的payload组进行测试
-  - **指定payload组**：可选择特定的payload组（如default、timebased、orderby等）进行针对性测试
+  - **指定payload组**：可选择特定的payload组（如default、blind-injection-fuzz、login-password-injection-fuzz、union-select-bypass等）进行针对性测试
 
 ### 配置目录位置
 
@@ -76,22 +78,26 @@ C:\Users\[用户名]\dousql\
 **配置文件结构：**
 ```
 ~/dousql/
-├── xia_SQL_diy_payload.ini           # 默认payload配置
-├── xia_SQL_payload_timebased.ini     # 时间盲注payload组
-├── xia_SQL_payload_orderby.ini       # 报错注入payload组
-├── xia_SQL_diy_error.ini             # 自定义报错关键字
-├── xia_SQL_response_time_threshold.ini # 响应时间阈值配置
-├── xia_SQL_length_diff_threshold.ini  # 长度差异阈值配置
-├── xia_SQL_blacklist_urls.ini        # 黑名单URL配置
-├── xia_SQL_whitelist.ini             # 白名单参数配置
-├── xia_SQL_blacklist.ini             # 黑名单参数配置
-└── xia_SQL_param_filter_mode.ini     # 参数过滤模式配置
+├── xia_SQL_diy_payload_default.ini                    # default payload配置
+├── xia_SQL_payload_orderby.ini                        # order测试组payload配置
+├── xia_SQL_payload_blind-injection-fuzz.ini           # 盲注专用payload配置
+├── xia_SQL_payload_login-password-injection-fuzz.ini  # 登录绕过payload配置
+├── xia_SQL_payload_mssql-payloads-fuzz.ini            # MSSQL专用payload配置
+├── xia_SQL_payload_oracle-payloads-fuzz.ini           # Oracle专用payload配置
+├── xia_SQL_payload_union-select-bypass.ini            # UNION绕过payload配置
+├── xia_SQL_diy_error_default.ini                      # 自定义报错关键字
+├── xia_SQL_response_time_threshold.ini                # 响应时间阈值配置
+├── xia_SQL_length_diff_threshold.ini                  # 长度差异阈值配置
+├── xia_SQL_blacklist_urls.ini                         # 黑名单URL配置
+├── xia_SQL_whitelist.ini                              # 白名单参数配置
+├── xia_SQL_blacklist.ini                              # 黑名单参数配置
+└── xia_SQL_param_filter_mode.ini                      # 参数过滤模式配置
 ```
 
 **特殊情况（jar包同级）：**
 ```
 /path/to/extensions/
-├── DouSql-3.0.5.jar          # 插件jar包
+├── DouSql-6.jar          # 插件jar包
 └── dousql/                   # 配置文件目录
     ├── xia_SQL_diy_payload.ini
     ├── xia_SQL_payload_timebased.ini
@@ -104,7 +110,7 @@ ProtectionDomain路径: /var/folders/.../tmp/burp.../20
 使用用户主目录: /Users/username
 hello DouSQL!
 你好 欢迎使用 DouSQL!
-version:3.0.5 (Montoya API)
+version:3.0. (Montoya API)
 jar包目录: /Users/username
 配置文件目录: /Users/username/dousql
 ```
@@ -146,7 +152,7 @@ cd DouSql
 mvn clean package
 
 # 编译完成后，jar文件位于：
-# target/DouSql-3.0.5.jar
+# target/DouSql-3.0.6.jar
 ```
 
 ### 安装使用
@@ -167,15 +173,42 @@ mvn clean package
 
 ### 状态标记
 - **start** - 正在测试中
+- **start [time]** - 正在测试中，已发现时间异常
+- **start [err]** - 正在测试中，已发现报错信息
+- **start [diff]** - 正在测试中，已发现长度差异
 - **end!** - 测试完成
-- **end! [err]** - 测试完成且发现报错信息
-- **end! [time]** - 测试完成且发现时间异常
+- **end! [time]** - 测试完成且发现时间异常（优先级最高）
+- **end! [err]** - 测试完成且发现报错信息（优先级第二）
+- **end! [diff]** - 测试完成且发现长度差异（优先级第三）
+- **已停止** - 用户手动停止测试
+
+**优先级说明**：当同时存在多种异常时，按照 **time > err > diff** 的优先级显示状态标记。
+- 如果检测到时间延迟（time），只显示 `time`
+- 如果检测到错误信息（err）和长度差异（diff），显示 `err+diff`
+- 如果只检测到长度差异（diff），显示 `diff`
+- 测试结束时（end!），会显示所有检测到的异常类型，如 `end! TIME ERR DIFF`
 
 ## 使用技巧
 
 ### 1. 根据应用场景配置payload组
-- **时间盲注场景**：使用`timebased`组，包含各种延时payload
-- **报错注入场景**：使用`orderby`组，包含报错类payload
+
+插件内置了7个专业的payload组，涵盖各种SQL注入场景：
+
+#### 内置Payload组说明
+- **default**（21个payload）：通用SQL注入检测，包含时间盲注、布尔盲注、报错注入等常见payload
+- **order测试组**（3个payload）：专门用于ORDER BY子句的注入测试
+- **blind-injection-fuzz**（42个payload）：盲注专用字典，包含MySQL、MSSQL、PostgreSQL的sleep/waitfor/benchmark等时间盲注payload
+- **login-password-injection-fuzz**（73个payload）：登录绕过专用字典，包含各种认证绕过和万能密码payload
+- **mssql-payloads-fuzz**（14个payload）：MSSQL数据库专用payload，包含xp_cmdshell、waitfor等特性
+- **oracle-payloads-fuzz**（8个payload）：Oracle数据库专用payload，包含utl_http、utl_inaddr等特性
+- **union-select-bypass**（30个payload）：UNION注入绕过字典，包含各种WAF绕过技巧
+
+#### 使用建议
+- **快速扫描**：使用`default`组进行初步检测
+- **深度测试**：根据目标数据库类型选择对应的专用组（mssql/oracle）
+- **登录场景**：使用`login-password-injection-fuzz`组测试登录表单
+- **盲注场景**：使用`blind-injection-fuzz`组进行时间盲注测试
+- **WAF绕过**：使用`union-select-bypass`组尝试绕过防护
 - **自定义场景**：创建专门的payload组，针对特定应用优化
 
 ### 2. 合理配置参数过滤
@@ -206,11 +239,29 @@ mvn clean package
 ### 6. 灵活使用右键菜单
 - **快速测试**：选择"使用当前组"进行快速测试，使用插件界面当前选中的payload组
 - **精确测试**：根据测试场景选择特定payload组：
-  - **default组**：通用payload，适合初步探测
-  - **timebased组**：专门的时间盲注payload，适合时间盲注场景
-  - **orderby组**：报错注入payload，适合有报错回显的场景
+  - **default组**：通用SQL注入检测，适合快速扫描
+  - **order测试组**：ORDER BY注入测试
+  - **blind-injection-fuzz组**：时间盲注深度测试
+  - **login-password-injection-fuzz组**：登录表单绕过测试
+  - **mssql-payloads-fuzz组**：MSSQL数据库专项测试
+  - **oracle-payloads-fuzz组**：Oracle数据库专项测试
+  - **union-select-bypass组**：UNION注入WAF绕过
   - **自定义组**：根据目标特点创建的专门payload组
 - **测试策略**：可以先用default组进行快速扫描，发现可疑点后再用专门的payload组深入测试
+
+### 7. 停止测试功能
+- **紧急停止**：当目标服务器异常或需要立即停止测试时，右键点击扫描结果中的URL
+- **选择性停止**：只停止选中的特定URL测试，不影响其他URL的测试进程
+- **智能提示**：菜单会显示当前测试状态，已完成的测试无法停止
+- **安全停止**：正在进行的payload测试会在当前完成后停止，避免请求中断
+
+### 8. 删除测试结果
+- **删除单个结果**：右键点击扫描结果中的URL，选择"删除测试结果"
+- **清空所有结果**：使用控制面板的"清空列表"按钮，一次性清理所有测试数据
+- **确认机制**：删除前会显示确认对话框，防止误操作
+- **完整清理**：删除操作会清理所有相关数据，包括payload测试结果
+- **实时更新**：删除后立即刷新界面，保持数据一致性
+- **适用场景**：清理误报结果、删除无关测试、整理测试列表、重新开始测试
 
 ## 重要提示
 
@@ -241,12 +292,9 @@ mvn clean package
 
 ## 更新记录
 
-### 最新版本 V3.0.5 (2025-01-05)
-- **完全修复中文参数编码问题**：支持UTF-8、GBK、GB2312等多种编码格式，解决中文参数乱码问题
-- **增强JSON处理能力**：完美支持复杂嵌套JSON结构，优化响应显示逻辑
-- **提升插件稳定性**：优化线程安全处理，移除冗余调试信息
-- **支持右键请求发送到不同的payload测试组**
-- **支持自定义参数追加并对指定参数做payload测试**
+### 最新版本 V3.0.6 (2025-01-06)
+- **支持右键停止当前目标请求测试**：当出现异常/不想对某些目标发起请求，可以右键停止。
+- **支持右键删除测试请求**：当某些测试结果无效，用户想在界面中剔除掉。
 
 **详细更新记录请查看 [CHANGELOG.md](CHANGELOG.md)**
 
