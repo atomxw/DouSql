@@ -703,6 +703,17 @@ public class HttpUtils {
                     }
                 }
                 
+                // 确保响应对象包含修改后的请求
+                if (testResponse != null) {
+                    // 检查请求是否正确
+                    byte[] savedRequest = testResponse.getRequest();
+                    if (savedRequest == null || !java.util.Arrays.equals(savedRequest, newRequest)) {
+                        callbacks.printOutput("  -> 警告：响应对象中的请求与发送的请求不一致，手动设置请求");
+                        // 创建新的响应对象，包含正确的请求
+                        testResponse = createRequestResponse(iHttpService, newRequest, testResponse.getResponse());
+                    }
+                }
+                
                 // 分析响应 - 保存完整的测试值
                // callbacks.printOutput("  -> 准备调用analyzeResponseWithWorkingValue");
                 analyzeResponseWithWorkingValue(testResponse, paramName, testValue, dataMd5, responseTime, toolFlag);
@@ -2554,5 +2565,68 @@ public class HttpUtils {
             callbacks.printError("替换JSON参数失败: " + e.getMessage());
             return body;
         }
+    }
+    
+    /**
+     * 创建包含指定请求和响应的 IHttpRequestResponse 对象
+     */
+    private IHttpRequestResponse createRequestResponse(IHttpService httpService, byte[] request, byte[] response) {
+        return new IHttpRequestResponse() {
+            private byte[] req = request;
+            private byte[] resp = response;
+            private IHttpService service = httpService;
+            private String comment;
+            private String highlight;
+            
+            @Override
+            public byte[] getRequest() {
+                return req;
+            }
+            
+            @Override
+            public void setRequest(byte[] message) {
+                req = message;
+            }
+            
+            @Override
+            public byte[] getResponse() {
+                return resp;
+            }
+            
+            @Override
+            public void setResponse(byte[] message) {
+                resp = message;
+            }
+            
+            @Override
+            public String getComment() {
+                return comment;
+            }
+            
+            @Override
+            public void setComment(String comment) {
+                this.comment = comment;
+            }
+            
+            @Override
+            public String getHighlight() {
+                return highlight;
+            }
+            
+            @Override
+            public void setHighlight(String color) {
+                this.highlight = color;
+            }
+            
+            @Override
+            public IHttpService getHttpService() {
+                return service;
+            }
+            
+            @Override
+            public void setHttpService(IHttpService httpService) {
+                this.service = httpService;
+            }
+        };
     }
 }
