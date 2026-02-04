@@ -172,7 +172,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         JScrollPane scanResultsScrollPane = new JScrollPane(scanResultsTable);
         
         JPanel scanResultsPanel = new JPanel(new BorderLayout());
-        scanResultsPanel.setBorder(BorderFactory.createTitledBorder("扫描结果"));
+        scanResultsPanel.setBorder(BorderFactory.createTitledBorder(burpExtender.i18n.getText("table.scan.results")));
         scanResultsPanel.add(scanResultsScrollPane, BorderLayout.CENTER);
         
         // 右侧：Payload详情表格
@@ -185,7 +185,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         JScrollPane payloadDetailsScrollPane = new JScrollPane(payloadDetailsTable);
         
         JPanel payloadDetailsPanel = new JPanel(new BorderLayout());
-        payloadDetailsPanel.setBorder(BorderFactory.createTitledBorder("参数测试详情"));
+        payloadDetailsPanel.setBorder(BorderFactory.createTitledBorder(burpExtender.i18n.getText("table.payload.details")));
         payloadDetailsPanel.add(payloadDetailsScrollPane, BorderLayout.CENTER);
         
         tablesSplitPane.setLeftComponent(scanResultsPanel);
@@ -210,11 +210,11 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 按照原始方式：使用带标题的面板而不是JTabbedPane
         JPanel requestPanel = new JPanel(new BorderLayout());
-        requestPanel.setBorder(BorderFactory.createTitledBorder("Request"));
+        requestPanel.setBorder(BorderFactory.createTitledBorder(burpExtender.i18n.getText("editor.request")));
         requestPanel.add(requestEditor.getComponent(), BorderLayout.CENTER);
         
         JPanel responsePanel = new JPanel(new BorderLayout());
-        responsePanel.setBorder(BorderFactory.createTitledBorder("Response"));
+        responsePanel.setBorder(BorderFactory.createTitledBorder(burpExtender.i18n.getText("editor.response")));
         responsePanel.add(responseEditor.getComponent(), BorderLayout.CENTER);
         
         editorsSplitPane.setLeftComponent(requestPanel);
@@ -253,7 +253,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
      */
     private JPanel createControlPanel() {
         JPanel controlPanel = new JPanel(new BorderLayout());
-        controlPanel.setBorder(BorderFactory.createTitledBorder("控制面板"));
+        controlPanel.setBorder(BorderFactory.createTitledBorder(burpExtender.i18n.getText("control.panel")));
         
         // 创建控制选项面板 - 使用GridBagLayout确保跨平台兼容性
         JPanel controlOptionsPanel = new JPanel(new GridBagLayout());
@@ -267,49 +267,57 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         int row = 0;
         
         // 标题
-        JLabel titleLabel = new JLabel("DouSQL-安全鸭专属【魔改版本】｜Author By：DarkFi5");
+        JLabel titleLabel = new JLabel(burpExtender.i18n.getText("plugin.title"));
         gbc.gridy = row++;
         controlOptionsPanel.add(titleLabel, gbc);
         
+        // 注册标题组件
+        registerI18nComponent("plugin.title", titleLabel);
+        
         // 基本控制复选框组
-        enablePluginCheckBox = new JCheckBox("启动插件", true);
+        enablePluginCheckBox = new JCheckBox(burpExtender.i18n.getText("control.enable.plugin"), true);
         gbc.gridy = row++;
         gbc.insets = new Insets(3, 5, 1, 5);
         gbc.fill = GridBagConstraints.NONE;
         gbc.weightx = 0.0;
         controlOptionsPanel.add(enablePluginCheckBox, gbc);
         
-        monitorRepeaterCheckBox = new JCheckBox("监控Repeater", false);
+        monitorRepeaterCheckBox = new JCheckBox(burpExtender.i18n.getText("control.monitor.repeater"), false);
         gbc.gridy = row++;
         gbc.insets = new Insets(1, 5, 1, 5);
         controlOptionsPanel.add(monitorRepeaterCheckBox, gbc);
         
-        monitorProxyCheckBox = new JCheckBox("监控Proxy", false);
+        monitorProxyCheckBox = new JCheckBox(burpExtender.i18n.getText("control.monitor.proxy"), false);
         gbc.gridy = row++;
         controlOptionsPanel.add(monitorProxyCheckBox, gbc);
         
-        processNumbersCheckBox = new JCheckBox("值是数字则进行-1、-0", true);
+        processNumbersCheckBox = new JCheckBox(burpExtender.i18n.getText("control.process.numbers"), true);
         gbc.gridy = row++;
         controlOptionsPanel.add(processNumbersCheckBox, gbc);
         
-        testCookieCheckBox = new JCheckBox("测试Cookie", false);
+        testCookieCheckBox = new JCheckBox(burpExtender.i18n.getText("control.test.cookie"), false);
         gbc.gridy = row++;
         controlOptionsPanel.add(testCookieCheckBox, gbc);
         
-        // 清空列表按钮
-        clearListButton = new JButton("清空列表");
-        clearListButton.setPreferredSize(new Dimension(120, 25));
+        // 清空列表按钮 - 设置固定尺寸
+        clearListButton = new JButton(burpExtender.i18n.getText("control.clear.list"));
+        clearListButton.setPreferredSize(new Dimension(140, 25)); // 增加宽度以适应英文
+        clearListButton.setMinimumSize(new Dimension(140, 25));
+        clearListButton.setMaximumSize(new Dimension(140, 25));
         gbc.gridy = row++;
         gbc.insets = new Insets(8, 5, 3, 5);
         controlOptionsPanel.add(clearListButton, gbc);
         
         // 白名单配置区域
-        JLabel whitelistLabel = new JLabel("如果需要多个域名加白请用,隔开");
+        JLabel whitelistLabel = new JLabel(burpExtender.i18n.getText("control.whitelist.hint"));
         gbc.gridy = row++;
         gbc.insets = new Insets(5, 5, 2, 5);
         controlOptionsPanel.add(whitelistLabel, gbc);
         
-        whitelistTextField = new JTextField("填写白名单域名");
+        // 注册白名单提示标签
+        registerI18nComponent("control.whitelist.hint", whitelistLabel);
+        
+        whitelistTextField = new JTextField(burpExtender.i18n.getText("control.whitelist.placeholder"));
         whitelistTextField.setPreferredSize(new Dimension(220, 25));
         whitelistTextField.setMinimumSize(new Dimension(180, 25));
         whitelistTextField.setMaximumSize(new Dimension(300, 25));
@@ -320,8 +328,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         gbc.weightx = 1.0;
         controlOptionsPanel.add(whitelistTextField, gbc);
         
-        whitelistButton = new JButton("启动白名单");
-        whitelistButton.setPreferredSize(new Dimension(120, 25));
+        whitelistButton = new JButton(burpExtender.i18n.getText("control.whitelist.enable"));
+        whitelistButton.setPreferredSize(new Dimension(140, 25)); // 增加宽度
+        whitelistButton.setMinimumSize(new Dimension(140, 25));
+        whitelistButton.setMaximumSize(new Dimension(140, 25));
         gbc.gridy = row++;
         gbc.insets = new Insets(2, 5, 3, 5);
         gbc.fill = GridBagConstraints.NONE;
@@ -352,15 +362,17 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         configTabs.setMinimumSize(new Dimension(200, 300));
         
         // 创建各个配置面板
-        configTabs.addTab("自定义SQL语句", createCustomSqlPanel());
-        configTabs.addTab("参数过滤配置", createParamFilterPanel());
-        configTabs.addTab("自定义报错信息", createCustomErrorPanel());
-        configTabs.addTab("时间阈值配置", createResponseTimePanel());
-        configTabs.addTab("长度差异配置", createLengthDiffPanel());
-        configTabs.addTab("黑名单URL过滤", createUrlBlacklistPanel());
-        configTabs.addTab("延时发包配置", createDelayConfigPanel());
-        configTabs.addTab("追加参数配置", createAppendParamsPanel());
-        configTabs.addTab("高级配置", createAdvancedConfigPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.custom.sql"), createCustomSqlPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.param.filter"), createParamFilterPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.response.filter"), createResponseFilterPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.custom.error"), createCustomErrorPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.time.threshold"), createResponseTimePanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.length.diff"), createLengthDiffPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.url.blacklist"), createUrlBlacklistPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.delay"), createDelayConfigPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.append.params"), createAppendParamsPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.advanced"), createAdvancedConfigPanel());
+        configTabs.addTab(burpExtender.i18n.getText("config.language"), createLanguagePanel());
         
         return configTabs;
     }
@@ -378,10 +390,13 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 配置文件路径说明
         String configPath = burpExtender.config.getConfigDirectory() + "/xia_SQL_diy_payload.ini";
-        JLabel configLabel = new JLabel("修改payload后点击保存，切换组时点击重新加载（配置文件：" + configPath + "）");
+        JLabel configLabel = new JLabel(burpExtender.i18n.getText("label.config.file.hint", configPath));
         configLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         topControlPanel.add(configLabel);
         topControlPanel.add(Box.createVerticalStrut(5));
+        
+        // 注册需要更新的组件
+        registerI18nComponent("label.config.file.hint", configLabel);
         
         // Payload组管理区域
         JPanel groupPanel = new JPanel(new GridBagLayout());
@@ -389,7 +404,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         gbcGroup.insets = new Insets(2, 2, 2, 2);
         gbcGroup.anchor = GridBagConstraints.WEST;
         
-        JLabel groupLabel = new JLabel("测试组:");
+        JLabel groupLabel = new JLabel(burpExtender.i18n.getText("label.test.group"));
         JComboBox<String> groupComboBox = new JComboBox<>();
         // 加载payload组
         for (String group : burpExtender.payloadUtils.getPayloadGroups()) {
@@ -397,12 +412,21 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         }
         groupComboBox.setPreferredSize(new Dimension(80, 25));
         
-        JTextField newGroupNameField = new JTextField("新组名");
+        JTextField newGroupNameField = new JTextField(burpExtender.i18n.getText("placeholder.new.group.name"));
         newGroupNameField.setPreferredSize(new Dimension(80, 25));
         
-        JButton newGroupButton = new JButton("新建");
-        JButton renameGroupButton = new JButton("重命名");
-        JButton deleteGroupButton = new JButton("删除");
+        // 注册新组名文本框
+        registerI18nComponent("placeholder.new.group.name", newGroupNameField);
+        
+        JButton newGroupButton = new JButton(burpExtender.i18n.getText("button.new.group"));
+        JButton renameGroupButton = new JButton(burpExtender.i18n.getText("button.rename.group"));
+        JButton deleteGroupButton = new JButton(burpExtender.i18n.getText("button.delete.group"));
+        
+        // 注册按钮组件
+        registerI18nComponent("label.test.group", groupLabel);
+        registerI18nComponent("button.new.group", newGroupButton);
+        registerI18nComponent("button.rename.group", renameGroupButton);
+        registerI18nComponent("button.delete.group", deleteGroupButton);
         
         // 设置按钮大小
         Dimension buttonSize = new Dimension(60, 25);
@@ -431,9 +455,14 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         topControlPanel.add(Box.createVerticalStrut(5));
         
         // 自定义payload选项
-        JCheckBox customPayloadCheckBox = new JCheckBox("自定义payload");
-        JCheckBox urlEncodeCheckBox = new JCheckBox("空格url编码", true);
-        JCheckBox emptyValueCheckBox = new JCheckBox("参数值置空");
+        JCheckBox customPayloadCheckBox = new JCheckBox(burpExtender.i18n.getText("checkbox.custom.payload"));
+        JCheckBox urlEncodeCheckBox = new JCheckBox(burpExtender.i18n.getText("checkbox.url.encode.spaces"), true);
+        JCheckBox emptyValueCheckBox = new JCheckBox(burpExtender.i18n.getText("checkbox.empty.param.values"));
+        
+        // 注册复选框组件
+        registerI18nComponent("checkbox.custom.payload", customPayloadCheckBox);
+        registerI18nComponent("checkbox.url.encode.spaces", urlEncodeCheckBox);
+        registerI18nComponent("checkbox.empty.param.values", emptyValueCheckBox);
         
         customPayloadCheckBox.setAlignmentX(Component.LEFT_ALIGNMENT);
         urlEncodeCheckBox.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -446,9 +475,14 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 按钮面板
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        JButton savePayloadButton = new JButton("保存payload");
-        JButton loadPayloadButton = new JButton("重新加载payload");
-        JButton resetPayloadButton = new JButton("重置为默认");
+        JButton savePayloadButton = new JButton(burpExtender.i18n.getText("button.save.payload"));
+        JButton loadPayloadButton = new JButton(burpExtender.i18n.getText("button.reload.payload"));
+        JButton resetPayloadButton = new JButton(burpExtender.i18n.getText("button.reset.default"));
+        
+        // 注册按钮组件
+        registerI18nComponent("button.save.payload", savePayloadButton);
+        registerI18nComponent("button.reload.payload", loadPayloadButton);
+        registerI18nComponent("button.reset.default", resetPayloadButton);
         
         savePayloadButton.setPreferredSize(new Dimension(120, 25));
         loadPayloadButton.setPreferredSize(new Dimension(140, 25));
@@ -481,7 +515,8 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         // 新建组按钮
         newGroupButton.addActionListener(e -> {
             String newGroupName = newGroupNameField.getText().trim();
-            if (newGroupName.isEmpty() || newGroupName.equals("新组名")) {
+            String placeholder = burpExtender.i18n.getText("placeholder.new.group.name");
+            if (newGroupName.isEmpty() || newGroupName.equals(placeholder)) {
                 JOptionPane.showMessageDialog(panel, "请输入有效的组名", "错误", JOptionPane.ERROR_MESSAGE);
                 return;
             }
@@ -498,7 +533,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
                 payloadArea.setText("");
                 
                 // 清空输入框
-                newGroupNameField.setText("新组名");
+                newGroupNameField.setText(burpExtender.i18n.getText("placeholder.new.group.name"));
                 
                 JOptionPane.showMessageDialog(panel, "成功创建新组: " + newGroupName, "成功", JOptionPane.INFORMATION_MESSAGE);
             } else {
@@ -510,13 +545,14 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         renameGroupButton.addActionListener(e -> {
             String currentGroup = (String) groupComboBox.getSelectedItem();
             String newGroupName = newGroupNameField.getText().trim();
+            String placeholder = burpExtender.i18n.getText("placeholder.new.group.name");
             
             if (currentGroup == null) {
                 JOptionPane.showMessageDialog(panel, "请选择要重命名的组", "错误", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
-            if (newGroupName.isEmpty() || newGroupName.equals("新组名")) {
+            if (newGroupName.isEmpty() || newGroupName.equals(placeholder)) {
                 JOptionPane.showMessageDialog(panel, "请输入有效的新组名", "错误", JOptionPane.ERROR_MESSAGE);
                 return;
             }
@@ -528,7 +564,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
                 groupComboBox.setSelectedItem(newGroupName);
                 
                 // 清空输入框
-                newGroupNameField.setText("新组名");
+                newGroupNameField.setText(burpExtender.i18n.getText("placeholder.new.group.name"));
                 
                 JOptionPane.showMessageDialog(panel, "成功重命名组: " + currentGroup + " -> " + newGroupName, "成功", JOptionPane.INFORMATION_MESSAGE);
             } else {
@@ -691,8 +727,11 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 顶部：启用复选框和配置文件路径
         String configPath = burpExtender.config.getConfigDirectory() + "/xia_SQL_diy_error.ini";
-        JCheckBox enableCustomErrorCheckBox = new JCheckBox("启用自定义报错信息（配置文件：" + configPath + "）", true);
+        JCheckBox enableCustomErrorCheckBox = new JCheckBox(burpExtender.i18n.getText("checkbox.enable.custom.error", configPath), true);
         enableCustomErrorCheckBox.setPreferredSize(new Dimension(400, 25));
+        
+        // 注册启用复选框
+        registerI18nComponent("checkbox.enable.custom.error", enableCustomErrorCheckBox);
         
         JPanel enablePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         enablePanel.add(enableCustomErrorCheckBox);
@@ -701,8 +740,11 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         JPanel errorTextPanel = new JPanel(new BorderLayout());
         errorTextPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
         
-        JLabel errorLabel = new JLabel("报错关键字配置 (每行一个关键字或正则表达式)");
+        JLabel errorLabel = new JLabel(burpExtender.i18n.getText("label.error.keywords"));
         errorLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 5, 0));
+        
+        // 注册组件
+        registerI18nComponent("label.error.keywords", errorLabel);
         
         JTextArea errorKeywordsTextArea = new JTextArea(15, 50);
         errorKeywordsTextArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
@@ -720,8 +762,11 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         JScrollPane errorScrollPane = new JScrollPane(errorKeywordsTextArea);
         
         // 底部：保存按钮
-        JButton saveErrorBtn = new JButton("保存报错信息配置");
+        JButton saveErrorBtn = new JButton(burpExtender.i18n.getText("button.save.error.config"));
         saveErrorBtn.setPreferredSize(new Dimension(150, 30));
+        
+        // 注册按钮
+        registerI18nComponent("button.save.error.config", saveErrorBtn);
         
         JPanel errorButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         errorButtonPanel.add(saveErrorBtn);
@@ -789,7 +834,8 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 响应时间阈值
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("响应时间阈值(毫秒):"), gbc);
+        JLabel responseTimeLabel = new JLabel(burpExtender.i18n.getText("label.response.time.threshold"));
+        panel.add(responseTimeLabel, gbc);
         
         JTextField responseTimeField = new JTextField(String.valueOf(burpExtender.config.getResponseTimeThreshold()));
         gbc.gridx = 1; gbc.gridy = row++;
@@ -799,12 +845,17 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         // 请求超时时间
         gbc.gridx = 0; gbc.gridy = row;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("请求超时时间(毫秒):"), gbc);
+        JLabel requestTimeoutLabel = new JLabel(burpExtender.i18n.getText("label.request.timeout"));
+        panel.add(requestTimeoutLabel, gbc);
         
         JTextField requestTimeoutField = new JTextField(String.valueOf(burpExtender.config.getRequestTimeout()));
         gbc.gridx = 1; gbc.gridy = row++;
         gbc.weightx = 1.0;
         panel.add(requestTimeoutField, gbc);
+        
+        // 注册组件
+        registerI18nComponent("label.response.time.threshold", responseTimeLabel);
+        registerI18nComponent("label.request.timeout", requestTimeoutLabel);
         
         // 说明文本
         JTextArea descArea = new JTextArea(
@@ -838,7 +889,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         panel.add(descArea, gbc);
         
         // 保存按钮
-        JButton saveButton = new JButton("保存时间阈值配置");
+        JButton saveButton = new JButton(burpExtender.i18n.getText("button.save.time.config"));
+        
+        // 注册按钮
+        registerI18nComponent("button.save.time.config", saveButton);
         saveButton.addActionListener(e -> {
             try {
                 int responseTime = Integer.parseInt(responseTimeField.getText().trim());
@@ -895,12 +949,16 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 长度差异阈值
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("长度差异阈值(字节):"), gbc);
+        JLabel lengthDiffLabel = new JLabel(burpExtender.i18n.getText("label.length.diff.threshold"));
+        panel.add(lengthDiffLabel, gbc);
         
         JTextField lengthDiffField = new JTextField(String.valueOf(burpExtender.config.getLengthDiffThreshold()));
         gbc.gridx = 1; gbc.gridy = row++;
         gbc.weightx = 1.0;
         panel.add(lengthDiffField, gbc);
+        
+        // 注册组件
+        registerI18nComponent("label.length.diff.threshold", lengthDiffLabel);
         
         // 说明文本
         JTextArea descArea = new JTextArea(
@@ -923,7 +981,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         panel.add(descArea, gbc);
         
         // 保存按钮
-        JButton saveButton = new JButton("保存长度差异配置");
+        JButton saveButton = new JButton(burpExtender.i18n.getText("button.save.length.config"));
+        
+        // 注册按钮
+        registerI18nComponent("button.save.length.config", saveButton);
         saveButton.addActionListener(e -> {
             try {
                 int lengthDiff = Integer.parseInt(lengthDiffField.getText().trim());
@@ -959,9 +1020,14 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         modePanel.setBorder(BorderFactory.createTitledBorder("过滤模式"));
         
         ButtonGroup modeGroup = new ButtonGroup();
-        JRadioButton noFilterRadio = new JRadioButton("无过滤 (所有参数测试)", burpExtender.config.getParamFilterMode() == 0);
-        JRadioButton whitelistRadio = new JRadioButton("白名单模式 (只测试配置参数)", burpExtender.config.getParamFilterMode() == 1);
-        JRadioButton blacklistRadio = new JRadioButton("黑名单模式 (跳过配置参数)", burpExtender.config.getParamFilterMode() == 2);
+        JRadioButton noFilterRadio = new JRadioButton(burpExtender.i18n.getText("filter.mode.none"), burpExtender.config.getParamFilterMode() == 0);
+        JRadioButton whitelistRadio = new JRadioButton(burpExtender.i18n.getText("filter.mode.whitelist"), burpExtender.config.getParamFilterMode() == 1);
+        JRadioButton blacklistRadio = new JRadioButton(burpExtender.i18n.getText("filter.mode.blacklist"), burpExtender.config.getParamFilterMode() == 2);
+        
+        // 注册过滤模式选项
+        registerI18nComponent("filter.mode.none", noFilterRadio);
+        registerI18nComponent("filter.mode.whitelist", whitelistRadio);
+        registerI18nComponent("filter.mode.blacklist", blacklistRadio);
         
         modeGroup.add(noFilterRadio);
         modeGroup.add(whitelistRadio);
@@ -973,8 +1039,11 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 参数配置编辑区
         JPanel paramAreaPanel = new JPanel(new BorderLayout());
-        JLabel paramListLabel = new JLabel("参数列表 (每行一个参数名)");
+        JLabel paramListLabel = new JLabel(burpExtender.i18n.getText("label.param.list"));
         paramListLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+        
+        // 注册组件
+        registerI18nComponent("label.param.list", paramListLabel);
         
         JTextArea paramListTextArea = new JTextArea(15, 30);
         paramListTextArea.setForeground(Color.BLACK);
@@ -1001,7 +1070,11 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 按钮区
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
-        JButton saveParamListBtn = new JButton("保存参数配置");
+        JButton saveParamListBtn = new JButton(burpExtender.i18n.getText("button.save.param.config"));
+        
+        // 注册按钮
+        registerI18nComponent("button.save.param.config", saveParamListBtn);
+        
         buttonPanel.add(saveParamListBtn);
         
         paramAreaPanel.add(paramListLabel, BorderLayout.NORTH);
@@ -1139,7 +1212,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         // 按钮面板 - 只保留保存和重置按钮
         JPanel buttonPanel = new JPanel(new FlowLayout());
         
-        JButton saveButton = new JButton("保存黑名单配置");
+        JButton saveButton = new JButton(burpExtender.i18n.getText("button.save.blacklist.config"));
+        
+        // 注册按钮
+        registerI18nComponent("button.save.blacklist.config", saveButton);
         saveButton.addActionListener(e -> {
             try {
                 String urlText = urlArea.getText().trim();
@@ -1167,7 +1243,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
             }
         });
         
-        JButton resetButton = new JButton("重置为默认");
+        JButton resetButton = new JButton(burpExtender.i18n.getText("button.reset.default"));
+        
+        // 注册按钮
+        registerI18nComponent("button.reset.default", resetButton);
         resetButton.addActionListener(e -> {
             urlArea.setText(
                 "# URL黑名单配置（每行一个，支持通配符）\n" +
@@ -1198,7 +1277,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
         // 顶部：启用追加参数复选框
-        JCheckBox enableAppendParamsCheckBox = new JCheckBox("启用自定义追加参数（启用即生效）", false);
+        JCheckBox enableAppendParamsCheckBox = new JCheckBox(burpExtender.i18n.getText("checkbox.enable.append.params"), false);
+        
+        // 注册组件
+        registerI18nComponent("checkbox.enable.append.params", enableAppendParamsCheckBox);
         JPanel enablePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         enablePanel.add(enableAppendParamsCheckBox);
         
@@ -1208,9 +1290,12 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 左侧：参数配置面板
         JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.setBorder(BorderFactory.createTitledBorder("追加参数配置"));
+        leftPanel.setBorder(BorderFactory.createTitledBorder(burpExtender.i18n.getText("border.append.params.config")));
         
-        JLabel paramLabel = new JLabel("参数列表 (格式: key:value，一行一个):");
+        JLabel paramLabel = new JLabel(burpExtender.i18n.getText("label.append.params"));
+        
+        // 注册组件
+        registerI18nComponent("label.append.params", paramLabel);
         leftPanel.add(paramLabel, BorderLayout.NORTH);
         
         JTextArea appendParamsTextArea = new JTextArea(12, 25);
@@ -1229,9 +1314,12 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 右侧：参数测试开关面板
         JPanel rightPanel = new JPanel(new BorderLayout());
-        rightPanel.setBorder(BorderFactory.createTitledBorder("测试开关"));
+        rightPanel.setBorder(BorderFactory.createTitledBorder(burpExtender.i18n.getText("border.test.switch")));
         
-        JLabel testLabel = new JLabel("选择参与payload测试的参数:");
+        JLabel testLabel = new JLabel(burpExtender.i18n.getText("label.test.switch"));
+        
+        // 注册组件
+        registerI18nComponent("label.test.switch", testLabel);
         rightPanel.add(testLabel, BorderLayout.NORTH);
         
         // 动态生成的参数勾选框面板
@@ -1239,7 +1327,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         paramTestPanel.setLayout(new BoxLayout(paramTestPanel, BoxLayout.Y_AXIS));
         
         // 初始提示
-        JLabel emptyLabel = new JLabel("<html><i>请在左侧输入参数，右侧会自动生成对应的测试选项</i></html>");
+        JLabel emptyLabel = new JLabel(burpExtender.i18n.getText("label.append.params.hint"));
+        
+        // 注册组件
+        registerI18nComponent("label.append.params.hint", emptyLabel);
         emptyLabel.setBorder(BorderFactory.createEmptyBorder(10, 5, 5, 5));
         paramTestPanel.add(emptyLabel);
         
@@ -1253,7 +1344,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 底部按钮面板 - 只保留清除按钮
         JPanel appendParamsButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JButton clearAppendParamsBtn = new JButton("清除配置并禁用");
+        JButton clearAppendParamsBtn = new JButton(burpExtender.i18n.getText("button.clear.append.params"));
+        
+        // 注册按钮
+        registerI18nComponent("button.clear.append.params", clearAppendParamsBtn);
         clearAppendParamsBtn.setToolTipText("完全清除追加参数配置并禁用功能");
         appendParamsButtonPanel.add(clearAppendParamsBtn);
         
@@ -1355,7 +1449,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
                 for (Map.Entry<String, String> entry : currentParams.entrySet()) {
                     String paramName = entry.getKey();
                     String paramValue = entry.getValue();
-                    JCheckBox paramCheckBox = new JCheckBox(paramName + " (值: " + paramValue + ")", false);
+                    JCheckBox paramCheckBox = new JCheckBox(burpExtender.i18n.getText("checkbox.param.test", paramName, paramValue), false);
                     paramCheckBox.setToolTipText("勾选后该参数会参与payload测试");
                     
                     // 添加复选框状态变化监听器
@@ -1486,9 +1580,14 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         delayModePanel.setBorder(BorderFactory.createTitledBorder("延时模式"));
         
         ButtonGroup delayModeGroup = new ButtonGroup();
-        JRadioButton noDelayRadio = new JRadioButton("无延时 (立即发送)", true);
-        JRadioButton fixedDelayRadio = new JRadioButton("固定延时", false);
-        JRadioButton randomDelayRadio = new JRadioButton("随机延时", false);
+        JRadioButton noDelayRadio = new JRadioButton(burpExtender.i18n.getText("delay.mode.none"), true);
+        JRadioButton fixedDelayRadio = new JRadioButton(burpExtender.i18n.getText("delay.mode.fixed"), false);
+        JRadioButton randomDelayRadio = new JRadioButton(burpExtender.i18n.getText("delay.mode.random"), false);
+        
+        // 注册延时模式选项
+        registerI18nComponent("delay.mode.none", noDelayRadio);
+        registerI18nComponent("delay.mode.fixed", fixedDelayRadio);
+        registerI18nComponent("delay.mode.random", randomDelayRadio);
         
         delayModeGroup.add(noDelayRadio);
         delayModeGroup.add(fixedDelayRadio);
@@ -1507,27 +1606,38 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 固定延时配置
         gbcDelay.gridx = 0; gbcDelay.gridy = 0;
-        delaySettingsPanel.add(new JLabel("固定延时时间(毫秒):"), gbcDelay);
+        JLabel fixedDelayLabel = new JLabel(burpExtender.i18n.getText("label.fixed.delay"));
+        delaySettingsPanel.add(fixedDelayLabel, gbcDelay);
         gbcDelay.gridx = 1;
         JTextField fixedDelayField = new JTextField("1000", 10);
         delaySettingsPanel.add(fixedDelayField, gbcDelay);
         
         // 随机延时配置
         gbcDelay.gridx = 0; gbcDelay.gridy = 1;
-        delaySettingsPanel.add(new JLabel("随机延时最小值(毫秒):"), gbcDelay);
+        JLabel randomDelayMinLabel = new JLabel(burpExtender.i18n.getText("label.random.delay.min"));
+        delaySettingsPanel.add(randomDelayMinLabel, gbcDelay);
         gbcDelay.gridx = 1;
         JTextField randomDelayMinField = new JTextField("1000", 10);
         delaySettingsPanel.add(randomDelayMinField, gbcDelay);
         
         gbcDelay.gridx = 0; gbcDelay.gridy = 2;
-        delaySettingsPanel.add(new JLabel("随机延时最大值(毫秒):"), gbcDelay);
+        JLabel randomDelayMaxLabel = new JLabel(burpExtender.i18n.getText("label.random.delay.max"));
+        delaySettingsPanel.add(randomDelayMaxLabel, gbcDelay);
         gbcDelay.gridx = 1;
         JTextField randomDelayMaxField = new JTextField("5000", 10);
         delaySettingsPanel.add(randomDelayMaxField, gbcDelay);
         
+        // 注册组件
+        registerI18nComponent("label.fixed.delay", fixedDelayLabel);
+        registerI18nComponent("label.random.delay.min", randomDelayMinLabel);
+        registerI18nComponent("label.random.delay.max", randomDelayMaxLabel);
+        
         // 保存按钮
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JButton saveDelayConfigBtn = new JButton("应用延时配置（本次会话）");
+        JButton saveDelayConfigBtn = new JButton(burpExtender.i18n.getText("button.apply.delay.config"));
+        
+        // 注册按钮
+        registerI18nComponent("button.apply.delay.config", saveDelayConfigBtn);
         buttonPanel.add(saveDelayConfigBtn);
         
         // 说明文本
@@ -1636,7 +1746,11 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         
         // 配置目录显示
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("配置目录:"), gbc);
+        JLabel configDirLabel = new JLabel(burpExtender.i18n.getText("label.config.directory"));
+        panel.add(configDirLabel, gbc);
+        
+        // 注册组件
+        registerI18nComponent("label.config.directory", configDirLabel);
         
         JTextField configDirField = new JTextField(burpExtender.config.getConfigDirectory());
         configDirField.setEditable(false);
@@ -1645,7 +1759,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         panel.add(configDirField, gbc);
         
         // 打开配置目录按钮
-        JButton openDirButton = new JButton("打开配置目录");
+        JButton openDirButton = new JButton(burpExtender.i18n.getText("button.open.config.dir"));
+        
+        // 注册按钮
+        registerI18nComponent("button.open.config.dir", openDirButton);
         openDirButton.addActionListener(e -> {
             try {
                 Desktop.getDesktop().open(new java.io.File(burpExtender.config.getConfigDirectory()));
@@ -1660,7 +1777,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         panel.add(openDirButton, gbc);
         
         // 重新加载配置按钮
-        JButton reloadButton = new JButton("重新加载所有配置");
+        JButton reloadButton = new JButton(burpExtender.i18n.getText("button.reload.all.config"));
+        
+        // 注册按钮
+        registerI18nComponent("button.reload.all.config", reloadButton);
         reloadButton.addActionListener(e -> {
             burpExtender.config.loadAllConfigs();
             JOptionPane.showMessageDialog(panel, "配置重新加载完成", "成功", JOptionPane.INFORMATION_MESSAGE);
@@ -1827,7 +1947,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
     
     @Override
     public String getTabCaption() {
-        return "DouSQL";
+        return burpExtender.i18n.getText("tab.title");
     }
     
     @Override
@@ -1996,13 +2116,13 @@ public class DouSqlUI implements ITab, IMessageEditorController {
                         byte[] request = entry.getRequestResponse().getRequest();
                         byte[] response = entry.getRequestResponse().getResponse();
                         
-                        callbacks.printOutput("=== 调试信息 ===");
-                        callbacks.printOutput("Request长度: " + (request != null ? request.length : "null"));
-                        callbacks.printOutput("Response长度: " + (response != null ? response.length : "null"));
+                        // callbacks.printOutput("=== 调试信息 ===");
+                        // callbacks.printOutput("Request长度: " + (request != null ? request.length : "null"));
+                        // callbacks.printOutput("Response长度: " + (response != null ? response.length : "null"));
                         
-                        if (request != null && request.length > 0) {
-                            callbacks.printOutput("Request前100字符: " + new String(request, 0, Math.min(100, request.length)));
-                        }
+                        // if (request != null && request.length > 0) {
+                        //     callbacks.printOutput("Request前100字符: " + new String(request, 0, Math.min(100, request.length)));
+                        // }
                         
                         // 使用Legacy API设置消息 - 完全按照RVScan的方式
                         requestEditor.setMessage(request != null ? request : new byte[0], true);
@@ -2155,7 +2275,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         JPopupMenu contextMenu = new JPopupMenu();
         
         // 停止/恢复当前请求测试 - 修复per-request pause逻辑
-        JMenuItem stopResumeTestItem = new JMenuItem("停止当前请求测试");
+        JMenuItem stopResumeTestItem = new JMenuItem(burpExtender.i18n.getText("menu.pause.test"));
         stopResumeTestItem.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow >= 0) {
@@ -2186,7 +2306,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         });
         
         // 删除测试请求
-        JMenuItem deleteTestItem = new JMenuItem("删除测试请求");
+        JMenuItem deleteTestItem = new JMenuItem(burpExtender.i18n.getText("menu.delete.test"));
         deleteTestItem.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow >= 0) {
@@ -2197,15 +2317,10 @@ public class DouSqlUI implements ITab, IMessageEditorController {
             }
         });
         
-        // 暂停所有扫描（全局控制）
-        JMenuItem pauseAllItem = new JMenuItem("暂停所有扫描");
+        // 暂停所有扫描（只暂停当前时间点之前的请求）
+        JMenuItem pauseAllItem = new JMenuItem(burpExtender.i18n.getText("menu.pause.all"));
         pauseAllItem.addActionListener(e -> {
-            burpExtender.scanningPaused = true;
-            callbacks.printOutput("所有扫描已暂停");
-            JOptionPane.showMessageDialog(mainSplitPane, 
-                "所有扫描已暂停\n可以通过重新加载插件来恢复扫描", 
-                "扫描控制", 
-                JOptionPane.INFORMATION_MESSAGE);
+            pauseAllCurrentRequests();
         });
         
         contextMenu.add(stopResumeTestItem);
@@ -2226,7 +2341,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         JPopupMenu contextMenu = new JPopupMenu();
         
         // 删除此payload测试结果
-        JMenuItem deletePayloadItem = new JMenuItem("删除此payload测试结果");
+        JMenuItem deletePayloadItem = new JMenuItem(burpExtender.i18n.getText("menu.delete.payload"));
         deletePayloadItem.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow >= 0) {
@@ -2238,7 +2353,7 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         });
         
         // 重新测试此payload
-        JMenuItem retestPayloadItem = new JMenuItem("重新测试此payload");
+        JMenuItem retestPayloadItem = new JMenuItem(burpExtender.i18n.getText("menu.retest.payload"));
         retestPayloadItem.addActionListener(e -> {
             int selectedRow = table.getSelectedRow();
             if (selectedRow >= 0) {
@@ -2423,5 +2538,662 @@ public class DouSqlUI implements ITab, IMessageEditorController {
     
     private void createContentArea() {
         // 预留方法，用于创建内容区域
+    }
+    
+    /**
+     * 创建响应过滤配置面板
+     */
+    private Component createResponseFilterPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(burpExtender.i18n.getText("config.response.filter")));
+        
+        // 顶部控制区域
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        
+        JCheckBox enableFilterCheckBox = new JCheckBox(burpExtender.i18n.getText("checkbox.enable.response.filter"), 
+            burpExtender.config.getResponseFilterConfig().isEnabled());
+        
+        JRadioButton andModeRadio = new JRadioButton("所有条件都满足(AND)", 
+            burpExtender.config.getResponseFilterConfig().isMatchAll());
+        JRadioButton orModeRadio = new JRadioButton("任一条件满足(OR)", 
+            !burpExtender.config.getResponseFilterConfig().isMatchAll());
+        
+        // 注册组件
+        registerI18nComponent("checkbox.enable.response.filter", enableFilterCheckBox);
+        
+        ButtonGroup modeGroup = new ButtonGroup();
+        modeGroup.add(andModeRadio);
+        modeGroup.add(orModeRadio);
+        
+        topPanel.add(enableFilterCheckBox);
+        topPanel.add(new JLabel("  |  "));
+        topPanel.add(andModeRadio);
+        topPanel.add(orModeRadio);
+        
+        // 条件列表区域
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        
+        // 创建条件列表模型
+        DefaultListModel<String> listModel = new DefaultListModel<>();
+        for (config.ResponseFilterConfig.FilterCondition condition : 
+             burpExtender.config.getResponseFilterConfig().getConditions()) {
+            listModel.addElement(condition.toString());
+        }
+        
+        JList<String> conditionsList = new JList<>(listModel);
+        conditionsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane scrollPane = new JScrollPane(conditionsList);
+        scrollPane.setPreferredSize(new Dimension(400, 200));
+        
+        centerPanel.add(scrollPane, BorderLayout.CENTER);
+        
+        // 按钮区域
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton addButton = new JButton(burpExtender.i18n.getText("button.add.condition"));
+        JButton editButton = new JButton(burpExtender.i18n.getText("button.edit.condition"));
+        JButton deleteButton = new JButton(burpExtender.i18n.getText("button.delete.condition"));
+        JButton saveButton = new JButton(burpExtender.i18n.getText("button.save.config"));
+        
+        // 注册按钮组件
+        registerI18nComponent("button.add.condition", addButton);
+        registerI18nComponent("button.edit.condition", editButton);
+        registerI18nComponent("button.delete.condition", deleteButton);
+        registerI18nComponent("button.save.config", saveButton);
+        
+        buttonPanel.add(addButton);
+        buttonPanel.add(editButton);
+        buttonPanel.add(deleteButton);
+        buttonPanel.add(saveButton);
+        
+        centerPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        // 事件处理
+        enableFilterCheckBox.addActionListener(e -> {
+            burpExtender.config.getResponseFilterConfig().setEnabled(enableFilterCheckBox.isSelected());
+        });
+        
+        andModeRadio.addActionListener(e -> {
+            burpExtender.config.getResponseFilterConfig().setMatchAll(true);
+        });
+        
+        orModeRadio.addActionListener(e -> {
+            burpExtender.config.getResponseFilterConfig().setMatchAll(false);
+        });
+        
+        // 显示添加条件对话框
+        addButton.addActionListener(e -> showAddConditionDialog(listModel));
+        
+        editButton.addActionListener(e -> {
+            int selectedIndex = conditionsList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                showEditConditionDialog(listModel, selectedIndex);
+            } else {
+                JOptionPane.showMessageDialog(panel, "请先选择要编辑的条件", "提示", JOptionPane.WARNING_MESSAGE);
+            }
+        });
+        
+        deleteButton.addActionListener(e -> {
+            int selectedIndex = conditionsList.getSelectedIndex();
+            if (selectedIndex >= 0) {
+                burpExtender.config.getResponseFilterConfig().removeCondition(selectedIndex);
+                listModel.remove(selectedIndex);
+            } else {
+                JOptionPane.showMessageDialog(panel, "请先选择要删除的条件", "提示", JOptionPane.WARNING_MESSAGE);
+            }
+        });
+        
+        saveButton.addActionListener(e -> {
+            burpExtender.config.saveResponseFilterConfig();
+            JOptionPane.showMessageDialog(panel, "响应过滤配置已保存", "保存成功", JOptionPane.INFORMATION_MESSAGE);
+        });
+        
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(centerPanel, BorderLayout.CENTER);
+        
+        return panel;
+    }
+    
+    /**
+     * 显示添加条件对话框
+     */
+    private void showAddConditionDialog(DefaultListModel<String> listModel) {
+        showConditionDialog(listModel, -1, null);
+    }
+    
+    /**
+     * 显示编辑条件对话框
+     */
+    private void showEditConditionDialog(DefaultListModel<String> listModel, int index) {
+        config.ResponseFilterConfig.FilterCondition condition = 
+            burpExtender.config.getResponseFilterConfig().getConditions().get(index);
+        showConditionDialog(listModel, index, condition);
+    }
+    
+    /**
+     * 显示条件配置对话框
+     */
+    private void showConditionDialog(DefaultListModel<String> listModel, int editIndex, 
+                                   config.ResponseFilterConfig.FilterCondition existingCondition) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(mainSplitPane), 
+                                   editIndex >= 0 ? burpExtender.i18n.getText("button.edit.condition") : burpExtender.i18n.getText("button.add.condition"), true);
+        dialog.setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        // 条件类型
+        gbc.gridx = 0; gbc.gridy = 0;
+        JLabel conditionTypeLabel = new JLabel(burpExtender.i18n.getText("label.condition.type"));
+        dialog.add(conditionTypeLabel, gbc);
+        
+        JComboBox<config.ResponseFilterConfig.FilterType> typeCombo = 
+            new JComboBox<>(config.ResponseFilterConfig.FilterType.values());
+        if (existingCondition != null) {
+            typeCombo.setSelectedItem(existingCondition.getType());
+        }
+        gbc.gridx = 1;
+        dialog.add(typeCombo, gbc);
+        
+        // 响应头名称（仅当类型为响应头时显示）
+        gbc.gridx = 0; gbc.gridy = 1;
+        JLabel headerNameLabel = new JLabel(burpExtender.i18n.getText("label.header.name"));
+        dialog.add(headerNameLabel, gbc);
+        
+        JTextField headerNameField = new JTextField(20);
+        if (existingCondition != null && existingCondition.getHeaderName() != null) {
+            headerNameField.setText(existingCondition.getHeaderName());
+        }
+        gbc.gridx = 1;
+        dialog.add(headerNameField, gbc);
+        
+        // 比较操作符
+        gbc.gridx = 0; gbc.gridy = 2;
+        JLabel compareOpLabel = new JLabel(burpExtender.i18n.getText("label.compare.operation"));
+        dialog.add(compareOpLabel, gbc);
+        
+        JComboBox<config.ResponseFilterConfig.CompareOperator> operatorCombo = 
+            new JComboBox<>(config.ResponseFilterConfig.CompareOperator.values());
+        if (existingCondition != null) {
+            operatorCombo.setSelectedItem(existingCondition.getOperator());
+        }
+        gbc.gridx = 1;
+        dialog.add(operatorCombo, gbc);
+        
+        // 比较值
+        gbc.gridx = 0; gbc.gridy = 3;
+        JLabel compareValueLabel = new JLabel(burpExtender.i18n.getText("label.compare.value"));
+        dialog.add(compareValueLabel, gbc);
+        
+        JTextField valueField = new JTextField(20);
+        if (existingCondition != null && existingCondition.getValue() != null) {
+            valueField.setText(existingCondition.getValue());
+        }
+        gbc.gridx = 1;
+        dialog.add(valueField, gbc);
+        
+        // 启用状态
+        gbc.gridx = 0; gbc.gridy = 4;
+        JCheckBox enabledCheckBox = new JCheckBox(burpExtender.i18n.getText("checkbox.enable.condition"), 
+            existingCondition == null || existingCondition.isEnabled());
+        gbc.gridwidth = 2;
+        dialog.add(enabledCheckBox, gbc);
+        
+        // 按钮
+        gbc.gridx = 0; gbc.gridy = 5;
+        gbc.gridwidth = 2;
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton okButton = new JButton(burpExtender.i18n.getText("button.ok"));
+        JButton cancelButton = new JButton(burpExtender.i18n.getText("button.cancel"));
+        buttonPanel.add(okButton);
+        buttonPanel.add(cancelButton);
+        dialog.add(buttonPanel, gbc);
+        
+        // 类型变化时控制响应头名称字段的可见性
+        typeCombo.addActionListener(e -> {
+            boolean isHeaderType = typeCombo.getSelectedItem() == config.ResponseFilterConfig.FilterType.RESPONSE_HEADER;
+            headerNameLabel.setVisible(isHeaderType);
+            headerNameField.setVisible(isHeaderType);
+            dialog.revalidate();
+        });
+        
+        // 初始化可见性
+        boolean isHeaderType = typeCombo.getSelectedItem() == config.ResponseFilterConfig.FilterType.RESPONSE_HEADER;
+        headerNameLabel.setVisible(isHeaderType);
+        headerNameField.setVisible(isHeaderType);
+        
+        // 事件处理
+        okButton.addActionListener(e -> {
+            try {
+                config.ResponseFilterConfig.FilterCondition condition = new config.ResponseFilterConfig.FilterCondition();
+                condition.setType((config.ResponseFilterConfig.FilterType) typeCombo.getSelectedItem());
+                condition.setOperator((config.ResponseFilterConfig.CompareOperator) operatorCombo.getSelectedItem());
+                condition.setValue(valueField.getText().trim());
+                condition.setEnabled(enabledCheckBox.isSelected());
+                
+                if (condition.getType() == config.ResponseFilterConfig.FilterType.RESPONSE_HEADER) {
+                    condition.setHeaderName(headerNameField.getText().trim());
+                    if (condition.getHeaderName().isEmpty()) {
+                        JOptionPane.showMessageDialog(dialog, "响应头名称不能为空", "错误", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                }
+                
+                if (condition.getValue().isEmpty()) {
+                    JOptionPane.showMessageDialog(dialog, "比较值不能为空", "错误", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                if (editIndex >= 0) {
+                    // 编辑现有条件
+                    burpExtender.config.getResponseFilterConfig().getConditions().set(editIndex, condition);
+                    listModel.set(editIndex, condition.toString());
+                } else {
+                    // 添加新条件
+                    burpExtender.config.getResponseFilterConfig().addCondition(condition);
+                    listModel.addElement(condition.toString());
+                }
+                
+                dialog.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, "保存条件时发生错误: " + ex.getMessage(), 
+                                            "错误", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        
+        cancelButton.addActionListener(e -> dialog.dispose());
+        
+        dialog.pack();
+        dialog.setLocationRelativeTo(mainSplitPane);
+        dialog.setVisible(true);
+    }
+    
+    /**
+     * 暂停所有当前请求（只暂停当前时间点之前的请求，不影响后续新请求）
+     */
+    private void pauseAllCurrentRequests() {
+        int pausedCount = 0;
+        
+        synchronized (scanResults) {
+            for (LogEntry entry : scanResults) {
+                String dataMd5 = entry.getDataMd5();
+                if (!burpExtender.pausedRequests.contains(dataMd5)) {
+                    burpExtender.pausedRequests.add(dataMd5);
+                    
+                    // 更新扫描结果状态为暂停
+                    entry.setState("paused");
+                    pausedCount++;
+                }
+            }
+        }
+        
+        // 刷新表格显示
+        refreshScanResultsTable();
+        
+        callbacks.printOutput(burpExtender.i18n.getText("message.requests.paused", pausedCount));
+        callbacks.printOutput(burpExtender.i18n.getText("message.new.requests.normal"));
+        
+        JOptionPane.showMessageDialog(mainSplitPane, 
+            burpExtender.i18n.getText("message.requests.paused", pausedCount) + "\n" +
+            burpExtender.i18n.getText("message.new.requests.normal") + "\n" +
+            burpExtender.i18n.getText("message.single.resume.hint"), 
+            burpExtender.i18n.getText("dialog.scan.control"), 
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    /**
+     * 创建语言设置面板
+     */
+    private Component createLanguagePanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Language Settings / 语言设置"));
+        
+        JPanel centerPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+        
+        // 当前语言显示
+        gbc.gridx = 0; gbc.gridy = 0;
+        centerPanel.add(new JLabel("Current Language / 当前语言:"), gbc);
+        
+        JLabel currentLanguageLabel = new JLabel(burpExtender.i18n.getCurrentLanguage().getDisplayName());
+        currentLanguageLabel.setFont(currentLanguageLabel.getFont().deriveFont(Font.BOLD, 14f));
+        gbc.gridx = 1;
+        centerPanel.add(currentLanguageLabel, gbc);
+        
+        // 语言选择
+        gbc.gridx = 0; gbc.gridy = 1;
+        centerPanel.add(new JLabel("Select Language / 选择语言:"), gbc);
+        
+        JComboBox<utils.I18nManager.Language> languageCombo = new JComboBox<>();
+        for (utils.I18nManager.Language lang : utils.I18nManager.Language.values()) {
+            languageCombo.addItem(lang);
+        }
+        languageCombo.setSelectedItem(burpExtender.i18n.getCurrentLanguage());
+        gbc.gridx = 1;
+        centerPanel.add(languageCombo, gbc);
+        
+        // 切换按钮
+        JButton switchButton = new JButton("Switch Language / 切换语言");
+        switchButton.setPreferredSize(new Dimension(200, 30));
+        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
+        centerPanel.add(switchButton, gbc);
+        
+        // 说明文本
+        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+        
+        JTextArea infoArea = new JTextArea();
+        infoArea.setText("Note: After switching language, please close and reopen the DouSQL tab\n" +
+                        "to see all interface elements in the new language.\n\n" +
+                        "注意：切换语言后，请关闭并重新打开 DouSQL 标签页\n" +
+                        "以查看所有界面元素的新语言显示。");
+        infoArea.setEditable(false);
+        infoArea.setOpaque(false);
+        infoArea.setFont(infoArea.getFont().deriveFont(Font.ITALIC, 12f));
+        infoArea.setForeground(Color.GRAY);
+        centerPanel.add(infoArea, gbc);
+        
+        // 事件处理
+        switchButton.addActionListener(e -> {
+            utils.I18nManager.Language selectedLanguage = 
+                (utils.I18nManager.Language) languageCombo.getSelectedItem();
+            
+            if (selectedLanguage != null && selectedLanguage != burpExtender.i18n.getCurrentLanguage()) {
+                burpExtender.i18n.switchLanguage(selectedLanguage);
+                currentLanguageLabel.setText(selectedLanguage.getDisplayName());
+                
+                // 显示成功消息
+                String message = burpExtender.i18n.getText("language.switch.success");
+                
+                // 提供两个选项：立即更新 或 重新加载扩展
+                int option = JOptionPane.showOptionDialog(panel,
+                    message + "\n\n" + 
+                    "Choose an option / 选择一个选项:\n" +
+                    "• Update Now: Update visible text immediately (recommended)\n" +
+                    "• Reload Extension: Completely reload the extension for full effect\n\n" +
+                    "• 立即更新：立即更新可见文本（推荐）\n" +
+                    "• 重新加载扩展：完全重新加载扩展以获得完整效果",
+                    "Language Switch / 语言切换",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE,
+                    null,
+                    new String[]{"Update Now / 立即更新", "Reload Extension / 重新加载扩展"},
+                    "Update Now / 立即更新");
+                
+                if (option == 0) {
+                    // 立即更新UI文本
+                    updateUITexts();
+                } else if (option == 1) {
+                    // 提示用户重新加载扩展
+                    JOptionPane.showMessageDialog(panel,
+                        "Please reload the DouSQL extension from Burp's Extensions tab for complete language change.\n\n" +
+                        "请从Burp的扩展标签页重新加载DouSQL扩展以完成语言切换。",
+                        "Reload Required / 需要重新加载",
+                        JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
+        });
+        
+        panel.add(centerPanel, BorderLayout.CENTER);
+        return panel;
+    }
+    
+    // 存储需要国际化的UI组件
+    private Map<String, JComponent> i18nComponents = new HashMap<>();
+    
+    /**
+     * 注册需要国际化的组件
+     */
+    private void registerI18nComponent(String key, JComponent component) {
+        i18nComponents.put(key, component);
+    }
+    
+    /**
+     * 更新UI文本（只更新控制面板和配置区域）
+     */
+    private void updateUITexts() {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                callbacks.printOutput("开始更新UI文本...");
+                
+                // 1. 更新控制面板中的组件文本
+                updateControlPanelTexts();
+                
+                // 2. 更新配置标签页标题
+                updateConfigTabTitles();
+                
+                // 3. 更新注册的国际化组件
+                updateRegisteredComponents();
+                
+                // 4. 刷新界面
+                if (mainSplitPane != null) {
+                    mainSplitPane.revalidate();
+                    mainSplitPane.repaint();
+                }
+                
+                callbacks.printOutput("UI文本更新完成");
+            } catch (Exception e) {
+                callbacks.printError("更新UI文本时发生错误: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
+    
+    /**
+     * 更新注册的国际化组件
+     */
+    private void updateRegisteredComponents() {
+        for (Map.Entry<String, JComponent> entry : i18nComponents.entrySet()) {
+            String key = entry.getKey();
+            JComponent component = entry.getValue();
+            
+            try {
+                if (component instanceof JButton) {
+                    ((JButton) component).setText(burpExtender.i18n.getText(key));
+                } else if (component instanceof JLabel) {
+                    // 特殊处理带参数的标签
+                    if ("label.config.file.hint".equals(key)) {
+                        String configPath = burpExtender.config.getConfigDirectory() + "/xia_SQL_diy_payload.ini";
+                        ((JLabel) component).setText(burpExtender.i18n.getText(key, configPath));
+                    } else {
+                        ((JLabel) component).setText(burpExtender.i18n.getText(key));
+                    }
+                } else if (component instanceof JCheckBox) {
+                    JCheckBox checkBox = (JCheckBox) component;
+                    String currentText = checkBox.getText();
+                    
+                    // 特殊处理带参数的复选框
+                    if ("checkbox.enable.custom.error".equals(key)) {
+                        String configPath = burpExtender.config.getConfigDirectory() + "/xia_SQL_diy_error.ini";
+                        checkBox.setText(burpExtender.i18n.getText(key, configPath));
+                    } else if (currentText.contains("(值:") || currentText.contains("(value:")) {
+                        // 处理参数测试复选框
+                        String[] parts = currentText.split(" \\(");
+                        if (parts.length >= 2) {
+                            String paramName = parts[0];
+                            String valuesPart = parts[1];
+                            String paramValue = valuesPart.substring(valuesPart.indexOf(":") + 1, valuesPart.lastIndexOf(")"));
+                            checkBox.setText(burpExtender.i18n.getText("checkbox.param.test", paramName, paramValue));
+                        } else {
+                            checkBox.setText(burpExtender.i18n.getText(key));
+                        }
+                    } else {
+                        checkBox.setText(burpExtender.i18n.getText(key));
+                    }
+                } else if (component instanceof JTextField) {
+                    JTextField textField = (JTextField) component;
+                    // 特殊处理占位符文本
+                    if ("placeholder.new.group.name".equals(key)) {
+                        String currentText = textField.getText();
+                        String chinesePlaceholder = "新组名";
+                        String englishPlaceholder = "New Group Name";
+                        if (currentText.equals(chinesePlaceholder) || currentText.equals(englishPlaceholder)) {
+                            textField.setText(burpExtender.i18n.getText(key));
+                        }
+                    }
+                } else if (component instanceof JRadioButton) {
+                    ((JRadioButton) component).setText(burpExtender.i18n.getText(key));
+                }
+            } catch (Exception e) {
+                callbacks.printError("更新组件失败: " + key + " - " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * 更新控制面板文本
+     */
+    private void updateControlPanelTexts() {
+        if (enablePluginCheckBox != null) {
+            enablePluginCheckBox.setText(burpExtender.i18n.getText("control.enable.plugin"));
+        }
+        if (monitorRepeaterCheckBox != null) {
+            monitorRepeaterCheckBox.setText(burpExtender.i18n.getText("control.monitor.repeater"));
+        }
+        if (monitorProxyCheckBox != null) {
+            monitorProxyCheckBox.setText(burpExtender.i18n.getText("control.monitor.proxy"));
+        }
+        if (processNumbersCheckBox != null) {
+            processNumbersCheckBox.setText(burpExtender.i18n.getText("control.process.numbers"));
+        }
+        if (testCookieCheckBox != null) {
+            testCookieCheckBox.setText(burpExtender.i18n.getText("control.test.cookie"));
+        }
+        if (clearListButton != null) {
+            clearListButton.setText(burpExtender.i18n.getText("control.clear.list"));
+        }
+        if (whitelistButton != null) {
+            whitelistButton.setText(burpExtender.i18n.getText("control.whitelist.enable"));
+        }
+        if (whitelistTextField != null) {
+            String currentText = whitelistTextField.getText();
+            String chinesePlaceholder = "填写白名单域名";
+            String englishPlaceholder = "Enter whitelist domains";
+            if (currentText.equals(chinesePlaceholder) || currentText.equals(englishPlaceholder)) {
+                whitelistTextField.setText(burpExtender.i18n.getText("control.whitelist.placeholder"));
+            }
+        }
+    }
+    
+    /**
+     * 更新表格标题
+     */
+    private void updateTableTitles() {
+        try {
+            // 查找并更新扫描结果表格的边框标题
+            updateBorderTitle(scanResultsTable.getParent().getParent(), "table.scan.results");
+            
+            // 查找并更新Payload详情表格的边框标题
+            updateBorderTitle(payloadDetailsTable.getParent().getParent(), "table.payload.details");
+            
+        } catch (Exception e) {
+            callbacks.printError("更新表格标题失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 更新配置标签页标题
+     */
+    private void updateConfigTabTitles() {
+        if (configTabs != null) {
+            try {
+                // 更新所有标签页的标题
+                String[] configKeys = {
+                    "config.custom.sql",
+                    "config.param.filter", 
+                    "config.response.filter",
+                    "config.custom.error",
+                    "config.time.threshold",
+                    "config.length.diff",
+                    "config.url.blacklist",
+                    "config.delay",
+                    "config.append.params",
+                    "config.advanced",
+                    "config.language"
+                };
+                
+                for (int i = 0; i < configKeys.length && i < configTabs.getTabCount(); i++) {
+                    configTabs.setTitleAt(i, burpExtender.i18n.getText(configKeys[i]));
+                }
+                
+            } catch (Exception e) {
+                callbacks.printError("更新配置标签页标题失败: " + e.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * 更新HTTP编辑器标题
+     */
+    private void updateHttpEditorTitles() {
+        try {
+            // 查找Request和Response面板并更新标题
+            Component[] components = findComponentsWithBorder(mainSplitPane);
+            for (Component comp : components) {
+                if (comp instanceof JPanel) {
+                    JPanel panel = (JPanel) comp;
+                    if (panel.getBorder() instanceof javax.swing.border.TitledBorder) {
+                        javax.swing.border.TitledBorder border = 
+                            (javax.swing.border.TitledBorder) panel.getBorder();
+                        String currentTitle = border.getTitle();
+                        
+                        if ("Request".equals(currentTitle) || "请求".equals(currentTitle)) {
+                            border.setTitle(burpExtender.i18n.getText("editor.request"));
+                        } else if ("Response".equals(currentTitle) || "响应".equals(currentTitle)) {
+                            border.setTitle(burpExtender.i18n.getText("editor.response"));
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            callbacks.printError("更新HTTP编辑器标题失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 更新指定组件的边框标题
+     */
+    private void updateBorderTitle(Component component, String textKey) {
+        if (component instanceof JPanel) {
+            JPanel panel = (JPanel) component;
+            if (panel.getBorder() instanceof javax.swing.border.TitledBorder) {
+                javax.swing.border.TitledBorder border = 
+                    (javax.swing.border.TitledBorder) panel.getBorder();
+                border.setTitle(burpExtender.i18n.getText(textKey));
+                panel.repaint();
+            }
+        }
+    }
+    
+    /**
+     * 递归查找所有带边框的组件
+     */
+    private Component[] findComponentsWithBorder(Container container) {
+        java.util.List<Component> components = new java.util.ArrayList<>();
+        findComponentsWithBorderRecursive(container, components);
+        return components.toArray(new Component[0]);
+    }
+    
+    /**
+     * 递归查找带边框的组件
+     */
+    private void findComponentsWithBorderRecursive(Container container, java.util.List<Component> result) {
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof JPanel) {
+                JPanel panel = (JPanel) comp;
+                if (panel.getBorder() instanceof javax.swing.border.TitledBorder) {
+                    result.add(comp);
+                }
+            }
+            
+            if (comp instanceof Container) {
+                findComponentsWithBorderRecursive((Container) comp, result);
+            }
+        }
     }
 }

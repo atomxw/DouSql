@@ -23,11 +23,13 @@ public class HttpUtils {
     private final BurpExtender burpExtender;
     private final IBurpExtenderCallbacks callbacks;
     private final IExtensionHelpers helpers;
+    private final ResponseFilter responseFilter;
     
     public HttpUtils(BurpExtender burpExtender) {
         this.burpExtender = burpExtender;
         this.callbacks = burpExtender.callbacks;
         this.helpers = burpExtender.helpers;
+        this.responseFilter = new ResponseFilter(callbacks, helpers);
     }
     
     /**
@@ -43,6 +45,19 @@ public class HttpUtils {
             
             IRequestInfo requestInfo = helpers.analyzeRequest(requestResponse);
             String url = requestInfo.getUrl().toString();
+            String method = requestInfo.getMethod();
+            
+            // 只处理 GET 和 POST 请求
+            if (!"GET".equalsIgnoreCase(method) && !"POST".equalsIgnoreCase(method)) {
+                callbacks.printOutput("跳过非 GET/POST 请求: " + method + " " + url);
+                return;
+            }
+            
+            // 检查域名白名单过滤
+            if (!isInWhitelist(requestResponse)) {
+                callbacks.printOutput("域名不在白名单中，跳过处理: " + url);
+                return;
+            }
             
             // 检查URL黑名单过滤
             if (isUrlBlacklisted(url)) {
@@ -50,13 +65,19 @@ public class HttpUtils {
                 return;
             }
             
+            // 检查响应过滤条件
+            if (!responseFilter.shouldProcessResponse(requestResponse, burpExtender.config.getResponseFilterConfig())) {
+                callbacks.printOutput("响应不符合过滤条件，跳过处理: " + url);
+                return;
+            }
+            
             callbacks.printOutput("=== 开始处理HTTP请求 ===");
             callbacks.printOutput("URL: " + url);
-            callbacks.printOutput("方法: " + requestInfo.getMethod());
+            callbacks.printOutput("方法: " + method);
             callbacks.printOutput("工具标识: " + toolFlag + " (" + getToolName(toolFlag) + ")");
             
             // 生成MD5标识
-            String dataMd5 = generateMd5(url + "+" + requestInfo.getMethod() + "+" + System.currentTimeMillis());
+            String dataMd5 = generateMd5(url + "+" + method + "+" + System.currentTimeMillis());
             
             // 移除去重检查，允许重复处理
             callbacks.printOutput("生成MD5标识: " + dataMd5);
@@ -129,6 +150,44 @@ public class HttpUtils {
         } catch (Exception e) {
             callbacks.printError("处理HTTP请求失败: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 检查域名是否在白名单中
+     */
+    private boolean isInWhitelist(IHttpRequestResponse requestResponse) {
+        if (!burpExtender.whitelistEnabled || burpExtender.whitelistDomains.isEmpty()) {
+            return true; // 白名单未启用或为空时，允许所有域名
+        }
+        
+        try {
+            String host = helpers.analyzeRequest(requestResponse).getUrl().getHost();
+            String[] domains = burpExtender.whitelistDomains.split(",");
+            
+            callbacks.printOutput("=== 域名白名单检查 ===");
+            callbacks.printOutput("检查域名: " + host);
+            callbacks.printOutput("白名单配置: " + burpExtender.whitelistDomains);
+            
+            for (String domain : domains) {
+                String trimmedDomain = domain.trim();
+                callbacks.printOutput("检查白名单规则: " + trimmedDomain);
+                
+                // 支持通配符匹配
+                String pattern = trimmedDomain.replace(".", "\\.").replace("*", ".*");
+                if (host.matches(pattern)) {
+                    callbacks.printOutput("✓ 匹配白名单规则: " + trimmedDomain);
+                    callbacks.printOutput("=== 域名检查通过 ===");
+                    return true;
+                }
+            }
+            
+            callbacks.printOutput("✗ 未匹配任何白名单规则");
+            callbacks.printOutput("=== 域名被过滤 ===");
+            return false;
+        } catch (Exception e) {
+            callbacks.printError("白名单检查失败: " + e.getMessage());
+            return true; // 出错时允许通过
         }
     }
     
@@ -251,9 +310,9 @@ public class HttpUtils {
         // callbacks.printOutput("=== startPayloadTesting方法开始执行 ===");
         // callbacks.printOutput("方法参数检查: originalRequest=" + (originalRequest != null) + ", requestInfo=" + (requestInfo != null) + ", dataMd5=" + dataMd5);
         
-        // 检查扫描是否被暂停（全局暂停或特定请求暂停）
-        if (burpExtender.scanningPaused || burpExtender.pausedRequests.contains(dataMd5)) {
-            callbacks.printOutput("扫描已暂停，跳过payload测试 (全局暂停: " + burpExtender.scanningPaused + ", 请求暂停: " + burpExtender.pausedRequests.contains(dataMd5) + ")");
+        // 检查扫描是否被暂停（只检查特定请求暂停）
+        if (burpExtender.pausedRequests.contains(dataMd5)) {
+            callbacks.printOutput("扫描已暂停，跳过payload测试 (请求暂停: " + burpExtender.pausedRequests.contains(dataMd5) + ")");
             updateScanResultState(dataMd5, "paused");
             return;
         }
@@ -366,8 +425,8 @@ public class HttpUtils {
                 callbacks.printOutput("测试参数: " + param.getName() + " (类型: " + param.getType() + " - " + paramType + ", 值: " + param.getValue() + ")");
                 
                 for (String payload : payloads) {
-                    // 检查扫描是否被暂停（全局暂停或特定请求暂停）
-                    if (burpExtender.scanningPaused || burpExtender.pausedRequests.contains(dataMd5)) {
+                    // 检查扫描是否被暂停（只检查特定请求暂停）
+                    if (burpExtender.pausedRequests.contains(dataMd5)) {
                         callbacks.printOutput("扫描已暂停，停止payload测试");
                         updateScanResultState(dataMd5, "paused");
                         return;
@@ -417,6 +476,37 @@ public class HttpUtils {
     }
     
     /**
+     * 检查是否是 POST JSON 请求
+     */
+    private boolean isPostJsonRequest(IHttpRequestResponse request) {
+        try {
+            IRequestInfo requestInfo = helpers.analyzeRequest(request);
+            
+            // 检查请求方法是否为 POST
+            if (!"POST".equalsIgnoreCase(requestInfo.getMethod())) {
+                return false;
+            }
+            
+            // 检查 Content-Type 是否包含 json
+            java.util.List<String> headers = requestInfo.getHeaders();
+            for (String header : headers) {
+                if (header.toLowerCase().startsWith("content-type:")) {
+                    String contentType = header.toLowerCase();
+                    if (contentType.contains("json")) {
+                        callbacks.printOutput("  -> 确认为 POST JSON 请求，Content-Type: " + header);
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        } catch (Exception e) {
+            callbacks.printError("检查 POST JSON 请求失败: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    /**
      * 处理自定义payload配置（URL编码和参数值置空）
      */
     private String processCustomPayload(String originalPayload, String paramName) {
@@ -430,22 +520,22 @@ public class HttpUtils {
         
         // 处理空格URL编码 - 独立于customPayloadEnabled，只要urlEncodeSpaces启用就执行
         if (burpExtender.urlEncodeSpaces) {
-            callbacks.printOutput("    [processCustomPayload] 执行空格编码...");
-            callbacks.printOutput("    [processCustomPayload] 编码前: [" + processedPayload + "]");
+            // callbacks.printOutput("    [processCustomPayload] 执行空格编码...");
+            // callbacks.printOutput("    [processCustomPayload] 编码前: [" + processedPayload + "]");
             processedPayload = processedPayload.replace(" ", "%20");
-            callbacks.printOutput("    [processCustomPayload] 编码后: [" + processedPayload + "]");
+            //callbacks.printOutput("    [processCustomPayload] 编码后: [" + processedPayload + "]");
         } else {
-            callbacks.printOutput("    [processCustomPayload] 跳过空格编码（urlEncodeSpaces=false）");
+            //callbacks.printOutput("    [processCustomPayload] 跳过空格编码（urlEncodeSpaces=false）");
         }
         
         // 处理参数值置空 - 需要customPayloadEnabled启用
         if (burpExtender.customPayloadEnabled && burpExtender.emptyParameterValues) {
-            callbacks.printOutput("    [processCustomPayload] 应用参数值置空配置");
+           // callbacks.printOutput("    [processCustomPayload] 应用参数值置空配置");
             // 参数值置空：清空原始参数值，只使用payload
             // 这个逻辑在调用方处理，这里只是标记
         }
         
-        callbacks.printOutput("    [processCustomPayload] 返回payload: [" + processedPayload + "]");
+       // callbacks.printOutput("    [processCustomPayload] 返回payload: [" + processedPayload + "]");
         return processedPayload;
     }
     
@@ -545,6 +635,14 @@ public class HttpUtils {
             
             String finalPayload = processCustomPayload(payload, paramName);
             
+            // 新增策略：如果是 POST JSON 请求，转义 payload 中的引号
+            if (isPostJsonRequest(originalRequest)) {
+                callbacks.printOutput("  -> 检测到 POST JSON 请求，转义 payload 中的引号");
+                callbacks.printOutput("  -> 转义前 payload: " + finalPayload);
+                finalPayload = finalPayload.replace("\"", "\\\"");
+                callbacks.printOutput("  -> 转义后 payload: " + finalPayload);
+            }
+            
             // callbacks.printOutput("  -> 处理后的payload: [" + finalPayload + "]");
             // callbacks.printOutput("  -> payload是否包含空格: " + payload.contains(" "));
             // callbacks.printOutput("  -> 处理后是否包含%20: " + finalPayload.contains("%20"));
@@ -575,39 +673,43 @@ public class HttpUtils {
             byte[] newRequestBytes;
             
             try {
-                //callbacks.printOutput("  -> 调用 helpers.buildParameter(\"" + paramName + "\", \"" + testValue + "\", " + param.getType() + ")");
+                callbacks.printOutput("  -> 调用 helpers.buildParameter(\"" + paramName + "\", \"" + testValue + "\", " + param.getType() + ")");
                 IParameter newParam = helpers.buildParameter(paramName, testValue, param.getType());
-               // callbacks.printOutput("  -> buildParameter 返回的参数值: [" + newParam.getValue() + "]");
+                callbacks.printOutput("  -> buildParameter 返回的参数值: [" + newParam.getValue() + "]");
                 
                 newRequestBytes = helpers.updateParameter(originalRequest.getRequest(), newParam);
-                //callbacks.printOutput("  -> updateParameter 完成");
+                callbacks.printOutput("  -> updateParameter 完成");
             } catch (UnsupportedOperationException e) {
-               // callbacks.printOutput("  -> Burp的updateParameter不支持此参数类型，尝试手动构建请求...");
+                callbacks.printOutput("  -> Burp的updateParameter不支持此参数类型，尝试手动构建请求...");
+                callbacks.printOutput("  -> 参数名: " + paramName);
+                callbacks.printOutput("  -> 参数类型: " + param.getType() + " - " + getParameterTypeName(param.getType()));
+                callbacks.printOutput("  -> 参数原始值: " + param.getValue());
+                callbacks.printOutput("  -> 测试值: " + testValue);
                 
                 // 尝试手动构建请求（特别是对于JSON数组）
                 newRequestBytes = buildRequestManually(originalRequest.getRequest(), param, testValue);
                 
                 if (newRequestBytes == null || newRequestBytes == originalRequest.getRequest()) {
-                    // callbacks.printError("  -> 错误：手动构建请求也失败");
-                    // callbacks.printError("  -> 参数名: " + paramName);
-                    // callbacks.printError("  -> 参数类型: " + param.getType() + " - " + getParameterTypeName(param.getType()));
-                    // callbacks.printError("  -> 参数值: " + param.getValue());
-                    // callbacks.printError("  -> 这可能是JSON数组根元素或其他特殊格式的参数");
-                    // callbacks.printError("  -> 跳过该参数的测试");
+                    callbacks.printError("  -> 错误：手动构建请求也失败");
+                    callbacks.printError("  -> 参数名: " + paramName);
+                    callbacks.printError("  -> 参数类型: " + param.getType() + " - " + getParameterTypeName(param.getType()));
+                    callbacks.printError("  -> 参数值: " + param.getValue());
+                    callbacks.printError("  -> 这可能是JSON数组元素或其他特殊格式的参数");
+                    callbacks.printError("  -> 跳过该参数的测试");
                     return;
                 }
                 
-                //callbacks.printOutput("  -> 手动构建请求成功");
+                callbacks.printOutput("  -> 手动构建请求成功");
             } catch (Exception e) {
-                // callbacks.printError("  -> 错误：构建请求时发生异常: " + e.getMessage());
-                // callbacks.printError("  -> 参数名: " + paramName);
-                // callbacks.printError("  -> 参数类型: " + param.getType() + " - " + getParameterTypeName(param.getType()));
-                // e.printStackTrace();
+                callbacks.printError("  -> 错误：构建请求时发生异常: " + e.getMessage());
+                callbacks.printError("  -> 参数名: " + paramName);
+                callbacks.printError("  -> 参数类型: " + param.getType() + " - " + getParameterTypeName(param.getType()));
+                e.printStackTrace();
                 return;
             }
             
             if (newRequestBytes == null || newRequestBytes.length == 0) {
-                //callbacks.printError("  -> 错误：构建请求失败（返回null或空数组）");
+                callbacks.printError("  -> 错误：构建请求失败（返回null或空数组）");
                 return;
             }
             
@@ -667,7 +769,7 @@ public class HttpUtils {
                     LogEntry payloadDetail = new LogEntry(
                         burpExtender.ui.payloadDetails.size() + 1,
                         paramName,
-                        testValue,
+                        payload, // 只保存 payload
                         "timeout>" + (timeoutMs/1000.0) + "s",
                         0,
                         (int)responseTime,
@@ -714,9 +816,9 @@ public class HttpUtils {
                     }
                 }
                 
-                // 分析响应 - 保存完整的测试值
+                // 分析响应 - 只保存 payload
                // callbacks.printOutput("  -> 准备调用analyzeResponseWithWorkingValue");
-                analyzeResponseWithWorkingValue(testResponse, paramName, testValue, dataMd5, responseTime, toolFlag);
+                analyzeResponseWithWorkingValue(testResponse, paramName, param.getValue(), payload, dataMd5, responseTime, toolFlag);
                 //callbacks.printOutput("  -> analyzeResponseWithWorkingValue调用完成");
                 
             } catch (Exception requestException) {
@@ -730,7 +832,7 @@ public class HttpUtils {
                     LogEntry payloadDetail = new LogEntry(
                         burpExtender.ui.payloadDetails.size() + 1,
                         paramName,
-                        testValue,
+                        payload, // 只保存 payload
                         "请求失败: " + requestException.getMessage(),
                         0,
                         0,
@@ -1136,50 +1238,103 @@ public class HttpUtils {
     }
     
     /**
-     * 替换JSON中的参数值 - 改进版本，正确处理数字和字符串值
+     * 替换JSON中的参数值 - 改进版本，正确处理数字、字符串、数组和对象
      */
     private String replaceJsonValue(String jsonBody, String paramName, String originalValue, String newValue) {
         try {
-            //callbacks.printOutput("  -> 替换JSON值: " + paramName + " 从 " + originalValue + " 到 " + newValue);
+            callbacks.printOutput("  -> 替换JSON值: " + paramName);
+            callbacks.printOutput("  -> 原始值: " + originalValue);
+            callbacks.printOutput("  -> 新值: " + newValue);
             
-            // 检查原始值是否为数字
+            // 检查原始值的类型
             boolean originalIsNumber = isNumericValue(originalValue);
-            // 检查新值是否应该作为数字处理（不包含引号的payload）
+            boolean originalIsArray = originalValue.trim().startsWith("[") && originalValue.trim().endsWith("]");
+            boolean originalIsObject = originalValue.trim().startsWith("{") && originalValue.trim().endsWith("}");
+            boolean originalIsString = !originalIsNumber && !originalIsArray && !originalIsObject;
+            
+            // 检查新值的类型
             boolean newValueIsNumber = isNumericValue(newValue) && !newValue.contains("'") && !newValue.contains("\"");
+            boolean newValueIsArray = newValue.trim().startsWith("[") && newValue.trim().endsWith("]");
+            boolean newValueIsObject = newValue.trim().startsWith("{") && newValue.trim().endsWith("}");
+            
+            callbacks.printOutput("  -> 原始值类型: 数字=" + originalIsNumber + ", 数组=" + originalIsArray + 
+                                ", 对象=" + originalIsObject + ", 字符串=" + originalIsString);
+            callbacks.printOutput("  -> 新值类型: 数字=" + newValueIsNumber + ", 数组=" + newValueIsArray + 
+                                ", 对象=" + newValueIsObject);
             
             String result = jsonBody;
             
-            if (originalIsNumber) {
-                // 原始值是数字，构建数字匹配模式
-                String numberPattern = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*" + escapeRegex(originalValue) + "(?=\\s*[,}])";
+            // 构建替换模式和替换值
+            String searchPattern;
+            String replacement;
+            
+            if (originalIsArray || originalIsObject) {
+                // 原始值是数组或对象，需要精确匹配整个结构
+                // 转义特殊字符
+                String escapedOriginal = escapeRegex(originalValue);
+                searchPattern = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*" + escapedOriginal;
+                
+                // 新值也应该是数组或对象，不加引号
+                if (newValueIsArray || newValueIsObject || newValueIsNumber) {
+                    replacement = "\"" + paramName + "\":" + newValue;
+                } else {
+                    // 新值是字符串，加引号
+                    replacement = "\"" + paramName + "\":\"" + escapeJsonValue(newValue) + "\"";
+                }
+                
+                callbacks.printOutput("  -> 使用数组/对象替换模式");
+                result = jsonBody.replaceAll(searchPattern, replacement);
+                
+                if (!result.equals(jsonBody)) {
+                    callbacks.printOutput("  -> 数组/对象值替换成功");
+                    return result;
+                }
+                
+                // 如果正则替换失败，尝试直接字符串替换
+                callbacks.printOutput("  -> 正则替换失败，尝试直接字符串替换");
+                String directSearch = "\"" + paramName + "\":" + originalValue;
+                String directReplacement = "\"" + paramName + "\":" + newValue;
+                result = jsonBody.replace(directSearch, directReplacement);
+                
+                if (!result.equals(jsonBody)) {
+                    callbacks.printOutput("  -> 直接字符串替换成功");
+                    return result;
+                }
+                
+            } else if (originalIsNumber) {
+                // 原始值是数字
+                searchPattern = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*" + escapeRegex(originalValue) + "(?=\\s*[,}])";
                 
                 if (newValueIsNumber) {
-                    // 新值也是数字，保持数字格式
-                    String replacement = "\"" + paramName + "\":" + newValue;
-                    result = jsonBody.replaceAll(numberPattern, replacement);
+                    replacement = "\"" + paramName + "\":" + newValue;
+                } else if (newValueIsArray || newValueIsObject) {
+                    replacement = "\"" + paramName + "\":" + newValue;
                 } else {
-                    // 新值是字符串，添加引号
-                    String replacement = "\"" + paramName + "\":\"" + escapeJsonValue(newValue) + "\"";
-                    result = jsonBody.replaceAll(numberPattern, replacement);
+                    replacement = "\"" + paramName + "\":\"" + escapeJsonValue(newValue) + "\"";
                 }
+                
+                callbacks.printOutput("  -> 使用数字替换模式");
+                result = jsonBody.replaceAll(searchPattern, replacement);
                 
                 if (!result.equals(jsonBody)) {
                     callbacks.printOutput("  -> 数字值替换成功");
                     return result;
                 }
+                
             } else {
-                // 原始值是字符串，构建字符串匹配模式
-                String stringPattern = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*\"" + escapeRegex(originalValue) + "\"";
+                // 原始值是字符串
+                searchPattern = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*\"" + escapeRegex(originalValue) + "\"";
                 
                 if (newValueIsNumber) {
-                    // 新值是数字，移除引号
-                    String replacement = "\"" + paramName + "\":" + newValue;
-                    result = jsonBody.replaceAll(stringPattern, replacement);
+                    replacement = "\"" + paramName + "\":" + newValue;
+                } else if (newValueIsArray || newValueIsObject) {
+                    replacement = "\"" + paramName + "\":" + newValue;
                 } else {
-                    // 新值也是字符串，保持引号
-                    String replacement = "\"" + paramName + "\":\"" + escapeJsonValue(newValue) + "\"";
-                    result = jsonBody.replaceAll(stringPattern, replacement);
+                    replacement = "\"" + paramName + "\":\"" + escapeJsonValue(newValue) + "\"";
                 }
+                
+                callbacks.printOutput("  -> 使用字符串替换模式");
+                result = jsonBody.replaceAll(searchPattern, replacement);
                 
                 if (!result.equals(jsonBody)) {
                     callbacks.printOutput("  -> 字符串值替换成功");
@@ -1189,7 +1344,15 @@ public class HttpUtils {
             
             // 如果精确匹配失败，尝试直接字符串替换（作为最后手段）
             if (!originalValue.isEmpty()) {
-                result = jsonBody.replace(":" + originalValue, ":" + (newValueIsNumber ? newValue : "\"" + escapeJsonValue(newValue) + "\""));
+                callbacks.printOutput("  -> 所有模式匹配失败，尝试最后的直接替换");
+                String finalReplacement;
+                if (newValueIsNumber || newValueIsArray || newValueIsObject) {
+                    finalReplacement = newValue;
+                } else {
+                    finalReplacement = "\"" + escapeJsonValue(newValue) + "\"";
+                }
+                
+                result = jsonBody.replace(":" + originalValue, ":" + finalReplacement);
                 if (!result.equals(jsonBody)) {
                     callbacks.printOutput("  -> 直接字符串替换成功");
                     return result;
@@ -1275,32 +1438,46 @@ public class HttpUtils {
      */
     private String getOriginalJsonValue(String jsonBody, String paramName) {
         try {
+            callbacks.printOutput("  -> [getOriginalJsonValue] 查找参数: " + paramName);
+            callbacks.printOutput("  -> [getOriginalJsonValue] JSON Body: " + jsonBody);
+            
             // 改进的JSON值提取，支持数组和复杂值
-            String pattern = "\"" + paramName + "\"\\s*:\\s*([^,}\\]]+(?:\\[[^\\]]*\\])?[^,}\\]]*)";
+            String pattern = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*([^,}\\]]+(?:\\[[^\\]]*\\])?[^,}\\]]*)";
+            callbacks.printOutput("  -> [getOriginalJsonValue] 正则模式: " + pattern);
+            
             java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern);
             java.util.regex.Matcher m = p.matcher(jsonBody);
             
             if (m.find()) {
                 String value = m.group(1).trim();
+                callbacks.printOutput("  -> [getOriginalJsonValue] 正则匹配成功，值: " + value);
                 
                 // 如果值以引号开始，提取引号内的内容
                 if (value.startsWith("\"") && value.endsWith("\"")) {
-                    return value.substring(1, value.length() - 1);
+                    String result = value.substring(1, value.length() - 1);
+                    callbacks.printOutput("  -> [getOriginalJsonValue] 返回字符串值: " + result);
+                    return result;
                 }
                 
                 // 如果是数组或对象，返回完整的值
                 if (value.startsWith("[") || value.startsWith("{")) {
+                    callbacks.printOutput("  -> [getOriginalJsonValue] 检测到数组或对象，调用 extractComplexJsonValue");
                     // 需要找到匹配的结束符
                     return extractComplexJsonValue(jsonBody, paramName);
                 }
                 
                 // 其他情况（数字、布尔值等）
+                callbacks.printOutput("  -> [getOriginalJsonValue] 返回简单值: " + value);
                 return value;
             }
             
-            return null;
+            callbacks.printOutput("  -> [getOriginalJsonValue] 正则匹配失败，尝试 extractComplexJsonValue");
+            // 如果正则匹配失败，直接尝试提取复杂值
+            return extractComplexJsonValue(jsonBody, paramName);
+            
         } catch (Exception e) {
             callbacks.printError("提取JSON值失败: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
@@ -1310,18 +1487,40 @@ public class HttpUtils {
      */
     private String extractComplexJsonValue(String jsonBody, String paramName) {
         try {
-            String searchPattern = "\"" + paramName + "\"\\s*:\\s*";
-            int startIndex = jsonBody.indexOf(searchPattern);
-            if (startIndex == -1) return null;
+            callbacks.printOutput("  -> [extractComplexJsonValue] 查找参数: " + paramName);
             
-            int valueStart = startIndex + searchPattern.length();
+            String searchPattern = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*";
+            callbacks.printOutput("  -> [extractComplexJsonValue] 搜索模式: " + searchPattern);
+            
+            int startIndex = jsonBody.indexOf("\"" + paramName + "\"");
+            callbacks.printOutput("  -> [extractComplexJsonValue] 参数名位置: " + startIndex);
+            
+            if (startIndex == -1) {
+                callbacks.printOutput("  -> [extractComplexJsonValue] 未找到参数名");
+                return null;
+            }
+            
+            int colonIndex = jsonBody.indexOf(":", startIndex);
+            if (colonIndex == -1) {
+                callbacks.printOutput("  -> [extractComplexJsonValue] 未找到冒号");
+                return null;
+            }
+            
+            int valueStart = colonIndex + 1;
             while (valueStart < jsonBody.length() && Character.isWhitespace(jsonBody.charAt(valueStart))) {
                 valueStart++;
             }
             
-            if (valueStart >= jsonBody.length()) return null;
+            callbacks.printOutput("  -> [extractComplexJsonValue] 值开始位置: " + valueStart);
+            
+            if (valueStart >= jsonBody.length()) {
+                callbacks.printOutput("  -> [extractComplexJsonValue] 值开始位置超出范围");
+                return null;
+            }
             
             char firstChar = jsonBody.charAt(valueStart);
+            callbacks.printOutput("  -> [extractComplexJsonValue] 第一个字符: " + firstChar);
+            
             char endChar;
             
             if (firstChar == '[') {
@@ -1332,8 +1531,11 @@ public class HttpUtils {
                 // 字符串值
                 int endIndex = jsonBody.indexOf('"', valueStart + 1);
                 if (endIndex != -1) {
-                    return jsonBody.substring(valueStart, endIndex + 1);
+                    String result = jsonBody.substring(valueStart, endIndex + 1);
+                    callbacks.printOutput("  -> [extractComplexJsonValue] 返回字符串: " + result);
+                    return result;
                 }
+                callbacks.printOutput("  -> [extractComplexJsonValue] 字符串未闭合");
                 return null;
             } else {
                 // 简单值（数字、布尔值等）
@@ -1345,10 +1547,13 @@ public class HttpUtils {
                     }
                     endIndex++;
                 }
-                return jsonBody.substring(valueStart, endIndex).trim();
+                String result = jsonBody.substring(valueStart, endIndex).trim();
+                callbacks.printOutput("  -> [extractComplexJsonValue] 返回简单值: " + result);
+                return result;
             }
             
             // 处理嵌套的数组或对象
+            callbacks.printOutput("  -> [extractComplexJsonValue] 处理嵌套结构，开始字符: " + firstChar + ", 结束字符: " + endChar);
             int depth = 1;
             int currentIndex = valueStart + 1;
             
@@ -1362,13 +1567,19 @@ public class HttpUtils {
                 currentIndex++;
             }
             
+            callbacks.printOutput("  -> [extractComplexJsonValue] 结束位置: " + currentIndex + ", depth: " + depth);
+            
             if (depth == 0) {
-                return jsonBody.substring(valueStart, currentIndex);
+                String result = jsonBody.substring(valueStart, currentIndex);
+                callbacks.printOutput("  -> [extractComplexJsonValue] 返回复杂值: " + result);
+                return result;
             }
             
+            callbacks.printOutput("  -> [extractComplexJsonValue] 括号未匹配");
             return null;
         } catch (Exception e) {
             callbacks.printError("提取复杂JSON值失败: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
@@ -1382,7 +1593,9 @@ public class HttpUtils {
                    .replace("\"", "\\\"")
                    .replace("\n", "\\n")
                    .replace("\r", "\\r")
-                   .replace("\t", "\\t");
+                   .replace("\t", "\\t")
+                   .replace("\b", "\\b")
+                   .replace("\f", "\\f");
     }
     
     /**
@@ -1424,31 +1637,31 @@ public class HttpUtils {
             int responseLength = response.getResponse().length - bodyOffset;  // 只计算响应体长度
             int statusCode = responseInfo.getStatusCode();
             
-            callbacks.printOutput("  -> [detectChange] 检测变化: 状态码=" + statusCode + ", 响应体长度=" + responseLength + ", 时间=" + responseTime + "ms");
+           // callbacks.printOutput("  -> [detectChange] 检测变化: 状态码=" + statusCode + ", 响应体长度=" + responseLength + ", 时间=" + responseTime + "ms");
             
             // 获取完整响应用于错误关键字检测
-            callbacks.printOutput("  -> [detectChange] 准备获取响应字符串");
+          //  callbacks.printOutput("  -> [detectChange] 准备获取响应字符串");
             String responseString = new String(response.getResponse(), StandardCharsets.UTF_8);
-            callbacks.printOutput("  -> [detectChange] 响应字符串长度: " + responseString.length());
+           // callbacks.printOutput("  -> [detectChange] 响应字符串长度: " + responseString.length());
             
             // 优先级1：检查时间延迟（最高优先级）
-            callbacks.printOutput("  -> [detectChange] 检查时间延迟");
+           // callbacks.printOutput("  -> [detectChange] 检查时间延迟");
             boolean isTimeExceeded = responseTime >= burpExtender.config.getResponseTimeThreshold();
-            callbacks.printOutput("  -> [detectChange] 时间延迟检查结果: " + isTimeExceeded);
+           // callbacks.printOutput("  -> [detectChange] 时间延迟检查结果: " + isTimeExceeded);
             
             // 优先级2：检查是否包含错误信息
-            callbacks.printOutput("  -> [detectChange] 准备检查错误关键字");
+            //callbacks.printOutput("  -> [detectChange] 准备检查错误关键字");
             boolean hasError = containsErrorKeywords(responseString);
-            callbacks.printOutput("  -> [detectChange] 错误关键字检查结果: " + hasError);
+           // callbacks.printOutput("  -> [detectChange] 错误关键字检查结果: " + hasError);
             
             // 优先级3：检查长度差异（布尔盲注）
-            callbacks.printOutput("  -> [detectChange] 准备检查长度差异");
+            //callbacks.printOutput("  -> [detectChange] 准备检查长度差异");
             // 使用原始响应长度作为基准
             Integer originalLength = burpExtender.originalResponseLengths.get(dataMd5);
             boolean hasLengthDiff = false;
             String lengthDiffInfo = "";
             
-            callbacks.printOutput("  -> 长度差异检测: 原始长度=" + originalLength + ", 当前长度=" + responseLength + ", 阈值=" + burpExtender.config.getLengthDiffThreshold());
+           // callbacks.printOutput("  -> 长度差异检测: 原始长度=" + originalLength + ", 当前长度=" + responseLength + ", 阈值=" + burpExtender.config.getLengthDiffThreshold());
             
             // 如果有原始响应长度，检查长度差异
             if (originalLength != null && originalLength != responseLength) {
@@ -1487,41 +1700,41 @@ public class HttpUtils {
                 // 时间延迟优先级最高 - 显示配置的阈值而不是实际时间
                 updateScanResultState(dataMd5, "time");
                 double thresholdSeconds = burpExtender.config.getResponseTimeThreshold() / 1000.0;
-                callbacks.printOutput("  -> [detectChange] 返回: time > " + thresholdSeconds + "s");
+               // callbacks.printOutput("  -> [detectChange] 返回: time > " + thresholdSeconds + "s");
                 return "time > " + thresholdSeconds + "s";
             } else if (hasError) {
                 // 错误信息优先级第二
                 updateScanResultState(dataMd5, "err");
-                callbacks.printOutput("  -> [detectChange] 返回: ERR!");
+               // callbacks.printOutput("  -> [detectChange] 返回: ERR!");
                 return "ERR!";
             } else if (hasLengthDiff) {
                 // 长度差异优先级第三
-                callbacks.printOutput("  -> [detectChange] 返回: " + lengthDiffInfo + " (hasLengthDiff=true)");
+              //  callbacks.printOutput("  -> [detectChange] 返回: " + lengthDiffInfo + " (hasLengthDiff=true)");
                 return lengthDiffInfo;
             } else if (!lengthDiffInfo.isEmpty()) {
                 // 显示长度差异信息（即使不显著）
-                callbacks.printOutput("  -> [detectChange] 返回: " + lengthDiffInfo + " (仅显示差异值，不标记)");
+               // callbacks.printOutput("  -> [detectChange] 返回: " + lengthDiffInfo + " (仅显示差异值，不标记)");
                 return lengthDiffInfo;
             } else {
                 // 无明显异常
-                callbacks.printOutput("  -> [detectChange] 返回: 空字符串（无异常）");
+              //  callbacks.printOutput("  -> [detectChange] 返回: 空字符串（无异常）");
                 return "";
             }
             
         } catch (Exception e) {
-            callbacks.printError("检测变化失败: " + e.getMessage());
+           // callbacks.printError("检测变化失败: " + e.getMessage());
             return "检测失败";
         }
     }
             
     /**
-     * 分析响应结果（保存完整的工作值）
+     * 分析响应结果（只保存 payload）
      */
-    private void analyzeResponseWithWorkingValue(IHttpRequestResponse response, String paramName, String testValue, 
-                                               String dataMd5, long responseTime, int toolFlag) {
+    private void analyzeResponseWithWorkingValue(IHttpRequestResponse response, String paramName, String originalValue, 
+                                               String payload, String dataMd5, long responseTime, int toolFlag) {
         try {
             callbacks.printOutput("  -> === analyzeResponseWithWorkingValue开始 ===");
-            callbacks.printOutput("  -> 参数: " + paramName + ", 测试值: " + testValue + ", MD5: " + dataMd5);
+            callbacks.printOutput("  -> 参数: " + paramName + ", 原始值: " + originalValue + ", Payload: " + payload + ", MD5: " + dataMd5);
             
             if (response == null) {
                 callbacks.printOutput("  -> 错误: response为null");
@@ -1533,6 +1746,13 @@ public class HttpUtils {
                 return;
             }
             
+            // 应用响应过滤 - 在payload测试中生效
+            if (!responseFilter.shouldProcessResponse(response, burpExtender.config.getResponseFilterConfig())) {
+                callbacks.printOutput("  -> 响应过滤: 响应不符合过滤条件，跳过此payload测试结果");
+                callbacks.printOutput("  -> 跳过的payload: " + payload + " (参数: " + paramName + ")");
+                return; // 直接返回，不记录此响应
+            }
+            
             IResponseInfo responseInfo = helpers.analyzeResponse(response.getResponse());
             int bodyOffset = responseInfo.getBodyOffset();
             int responseLength = response.getResponse().length - bodyOffset;  // 只计算响应体长度
@@ -1540,17 +1760,18 @@ public class HttpUtils {
             
             callbacks.printOutput("  -> 响应分析: 状态码=" + statusCode + ", 响应体长度=" + responseLength + ", 时间=" + responseTime + "ms");
             
-            // 检测变化
-            String change = detectChange(response, dataMd5, testValue, responseTime);
+            // 检测变化（使用完整的测试值进行检测）
+            String fullTestValue = originalValue + payload;
+            String change = detectChange(response, dataMd5, fullTestValue, responseTime);
             callbacks.printOutput("  -> 检测到变化: " + change);
             
-            // 创建Payload详情条目 - 保存完整的测试值和正确的工具标识
+            // 创建Payload详情条目 - 只保存 payload
             callbacks.printOutput("  -> 准备创建LogEntry");
             callbacks.printOutput("  -> 使用MD5: " + dataMd5 + " (应该与扫描结果MD5匹配)");
             LogEntry payloadDetail = new LogEntry(
                 burpExtender.ui.payloadDetails.size() + 1,
                 paramName,
-                testValue, // 保存完整的测试值（workingValue + payload）
+                payload, // 只保存 payload，不保存完整的测试值
                 change,
                 responseLength,
                 (int)responseTime,
@@ -1568,7 +1789,7 @@ public class HttpUtils {
             burpExtender.ui.addPayloadDetail(payloadDetail);
             callbacks.printOutput("  -> addPayloadDetail调用完成");
             callbacks.printOutput("  -> 新的payloadDetails大小: " + burpExtender.ui.payloadDetails.size());
-            callbacks.printOutput("  -> Payload详情已添加到UI（保存了完整的测试值）");
+            callbacks.printOutput("  -> Payload详情已添加到UI（只保存了payload）");
             
             // 更新扫描结果的响应长度（使用第一个响应的长度）
             updateScanResultResponseLength(dataMd5, responseLength);
@@ -1620,11 +1841,11 @@ public class HttpUtils {
                 boolean matched = false;
                 
                 // 检查是否是正则表达式模式
-                if (keyword.contains("\\") || keyword.contains(".*") || keyword.contains("\\d") || 
+                if (keyword.contains("\\\\") || keyword.contains(".*") || keyword.contains("\\\\d") || 
                     keyword.contains("[") || keyword.contains("]") || keyword.contains("^") || keyword.contains("$")) {
                     // 正则表达式匹配
                     try {
-                        matched = responseString.matches(".*" + keyword + ".*");
+                        matched = responseString.matches("[\\s\\S]*" + keyword + "[\\s\\S]*");
                         callbacks.printOutput("  -> 正则表达式匹配: " + keyword + " -> " + matched);
                     } catch (Exception regexException) {
                         // 正则表达式错误，降级为普通字符串匹配
@@ -1634,7 +1855,7 @@ public class HttpUtils {
                 } else {
                     // 普通字符串匹配（不区分大小写）
                     matched = responseString.toLowerCase().contains(keyword.toLowerCase());
-                    callbacks.printOutput("  -> 普通字符串匹配: " + keyword + " -> " + matched);
+                    //callbacks.printOutput("  -> 普通字符串匹配: " + keyword + " -> " + matched);
                 }
                 
                 if (matched) {
@@ -2503,10 +2724,10 @@ public class HttpUtils {
             String headers = parts[0];
             String body = parts[1];
             
-            callbacks.printOutput("  -> 原始请求体: " + body);
-            callbacks.printOutput("  -> 参数名: " + param.getName());
-            callbacks.printOutput("  -> 参数原始值: " + param.getValue());
-            callbacks.printOutput("  -> 新值: " + newValue);
+            // callbacks.printOutput("  -> 原始请求体: " + body);
+            // callbacks.printOutput("  -> 参数名: " + param.getName());
+            // callbacks.printOutput("  -> 参数原始值: " + param.getValue());
+            // callbacks.printOutput("  -> 新值: " + newValue);
             
             // 检查是否是JSON格式
             String contentType = "";
@@ -2522,26 +2743,40 @@ public class HttpUtils {
                 return originalRequest;
             }
             
-            // 获取原始参数值
-            String originalValue = getOriginalJsonValue(body, param.getName());
+            // 获取参数对应的完整JSON值（可能是数组）
+            String fullValue = getOriginalJsonValue(body, param.getName());
+            callbacks.printOutput("  -> 参数的完整JSON值: " + fullValue);
+            
             String newBody = body;
             
-            if (originalValue != null) {
-                callbacks.printOutput("  -> 找到原始参数值: " + originalValue);
+            if (fullValue != null && isJsonArray(fullValue)) {
+                // 参数值是数组，需要在数组中找到对应元素并替换
+                callbacks.printOutput("  -> 参数是数组类型");
+                callbacks.printOutput("  -> 需要在数组中查找值为 " + param.getValue() + " 的元素");
                 
-                // 检查原始值是否是数组格式
-                boolean isArray = isJsonArray(originalValue);
-                callbacks.printOutput("  -> 参数是否为数组: " + isArray);
+                // 在数组中查找并替换指定值的元素
+                newBody = replaceArrayElementByValue(body, param.getName(), fullValue, param.getValue(), newValue);
                 
-                if (isArray) {
-                    // 数组参数：修改数组的第一个元素
-                    newBody = injectPayloadIntoJsonArray(body, param.getName(), originalValue, newValue);
+            } else if (fullValue != null) {
+                // 普通参数：直接替换值
+                callbacks.printOutput("  -> 参数是普通类型");
+                callbacks.printOutput("  -> 原始完整值: " + fullValue);
+                callbacks.printOutput("  -> 新测试值: " + newValue);
+                callbacks.printOutput("  -> 新测试值是否包含引号: " + newValue.contains("\""));
+                
+                // 对于 JSON 字符串参数，确保新值被正确转义
+                if (fullValue.startsWith("\"") && fullValue.endsWith("\"")) {
+                    callbacks.printOutput("  -> 检测到字符串类型参数，确保转义");
+                    // 原始值是带引号的字符串，新值也应该是转义后的字符串
+                    String escapedNewValue = escapeJsonValue(newValue);
+                    callbacks.printOutput("  -> 转义后的新值: " + escapedNewValue);
+                    newBody = replaceJsonValue(body, param.getName(), fullValue, "\"" + escapedNewValue + "\"");
                 } else {
-                    // 普通参数：直接替换值
-                    newBody = replaceJsonValue(body, param.getName(), originalValue, newValue);
+                    // 其他类型（数字、布尔等）
+                    newBody = replaceJsonValue(body, param.getName(), fullValue, newValue);
                 }
             } else {
-                callbacks.printOutput("  -> 未找到参数，尝试直接替换");
+                callbacks.printOutput("  -> 未找到参数的完整值，尝试直接替换");
                 // 如果没有找到匹配，尝试使用旧的替换方法
                 newBody = replaceJsonParameterInBody(body, param.getName(), param.getValue(), newValue);
             }
@@ -2573,11 +2808,20 @@ public class HttpUtils {
      */
     private String replaceJsonParameterInBody(String body, String paramName, String oldValue, String newValue) {
         try {
+            callbacks.printOutput("  -> [replaceJsonParameterInBody] 开始");
+            callbacks.printOutput("  -> [replaceJsonParameterInBody] 参数名: " + paramName);
+            callbacks.printOutput("  -> [replaceJsonParameterInBody] 旧值: " + oldValue);
+            callbacks.printOutput("  -> [replaceJsonParameterInBody] 新值: " + newValue);
+            callbacks.printOutput("  -> [replaceJsonParameterInBody] 新值包含引号: " + newValue.contains("\""));
+            
             // 尝试多种替换策略
             
             // 策略1：精确匹配 "paramName":"oldValue"
             String pattern1 = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*\"" + escapeRegex(oldValue) + "\"";
             String replacement1 = "\"" + paramName + "\":\"" + escapeJsonValue(newValue) + "\"";
+            callbacks.printOutput("  -> [replaceJsonParameterInBody] 策略1 - 模式: " + pattern1);
+            callbacks.printOutput("  -> [replaceJsonParameterInBody] 策略1 - 替换: " + replacement1);
+            
             String result = body.replaceAll(pattern1, replacement1);
             if (!result.equals(body)) {
                 callbacks.printOutput("  -> 策略1成功：字符串值精确匹配");
@@ -2588,6 +2832,9 @@ public class HttpUtils {
             if (isNumericValue(oldValue)) {
                 String pattern2 = "\"" + escapeRegex(paramName) + "\"\\s*:\\s*" + escapeRegex(oldValue);
                 String replacement2 = "\"" + paramName + "\":" + (isNumericValue(newValue) ? newValue : "\"" + escapeJsonValue(newValue) + "\"");
+                callbacks.printOutput("  -> [replaceJsonParameterInBody] 策略2 - 模式: " + pattern2);
+                callbacks.printOutput("  -> [replaceJsonParameterInBody] 策略2 - 替换: " + replacement2);
+                
                 result = body.replaceAll(pattern2, replacement2);
                 if (!result.equals(body)) {
                     callbacks.printOutput("  -> 策略2成功：数字值匹配");
@@ -2598,7 +2845,11 @@ public class HttpUtils {
             // 策略3：简单字符串替换（最后手段）
             // 对于JSON数组中的值，直接替换可能更有效
             if (body.contains("\"" + oldValue + "\"")) {
-                result = body.replace("\"" + oldValue + "\"", "\"" + escapeJsonValue(newValue) + "\"");
+                String replacement3 = "\"" + escapeJsonValue(newValue) + "\"";
+                callbacks.printOutput("  -> [replaceJsonParameterInBody] 策略3 - 查找: \"" + oldValue + "\"");
+                callbacks.printOutput("  -> [replaceJsonParameterInBody] 策略3 - 替换: " + replacement3);
+                
+                result = body.replace("\"" + oldValue + "\"", replacement3);
                 if (!result.equals(body)) {
                     callbacks.printOutput("  -> 策略3成功：简单字符串替换");
                     return result;
@@ -2623,6 +2874,112 @@ public class HttpUtils {
         } catch (Exception e) {
             callbacks.printError("替换JSON参数失败: " + e.getMessage());
             return body;
+        }
+    }
+    
+    /**
+     * 在JSON数组中查找并替换指定值的元素
+     * 
+     * @param jsonBody JSON请求体
+     * @param paramName 参数名
+     * @param arrayValue 完整的数组值（如 [1,2,3,4,5]）
+     * @param oldElementValue 要查找的元素值（如 "3"）
+     * @param newElementValue 新的元素值（如 "3'"）
+     * @return 修改后的JSON请求体
+     */
+    private String replaceArrayElementByValue(String jsonBody, String paramName, String arrayValue, 
+                                               String oldElementValue, String newElementValue) {
+        try {
+            callbacks.printOutput("  -> 在数组中查找并替换元素");
+            callbacks.printOutput("  -> 数组值: " + arrayValue);
+            callbacks.printOutput("  -> 查找元素: " + oldElementValue);
+            callbacks.printOutput("  -> 新元素值: " + newElementValue);
+            
+            // 解析数组内容
+            String arrayContent = arrayValue.substring(1, arrayValue.length() - 1).trim();
+            
+            if (arrayContent.isEmpty()) {
+                callbacks.printOutput("  -> 数组为空，无法替换");
+                return jsonBody;
+            }
+            
+            // 分割数组元素
+            String[] elements = splitJsonArrayElements(arrayContent);
+            callbacks.printOutput("  -> 数组元素数量: " + elements.length);
+            
+            boolean found = false;
+            StringBuilder newArrayBuilder = new StringBuilder("[");
+            
+            for (int i = 0; i < elements.length; i++) {
+                if (i > 0) {
+                    newArrayBuilder.append(",");
+                }
+                
+                String element = elements[i].trim();
+                String elementValue = element;
+                
+                // 去掉引号（如果有）
+                if (element.startsWith("\"") && element.endsWith("\"")) {
+                    elementValue = element.substring(1, element.length() - 1);
+                }
+                
+                callbacks.printOutput("  -> 检查元素[" + i + "]: " + element + " (值: " + elementValue + ")");
+                
+                // 检查是否匹配要查找的值
+                if (elementValue.equals(oldElementValue)) {
+                    // 找到匹配的元素，替换为新值
+                    callbacks.printOutput("  -> 找到匹配元素，索引: " + i);
+                    
+                    // 将新值转为字符串格式（添加引号）
+                    String newElement = "\"" + escapeJsonValue(newElementValue) + "\"";
+                    newArrayBuilder.append(newElement);
+                    found = true;
+                } else {
+                    // 保持原有元素
+                    newArrayBuilder.append(element);
+                }
+            }
+            
+            newArrayBuilder.append("]");
+            
+            if (!found) {
+                callbacks.printOutput("  -> 警告：未找到匹配的元素值: " + oldElementValue);
+                return jsonBody;
+            }
+            
+            String newArrayValue = newArrayBuilder.toString();
+            callbacks.printOutput("  -> 新数组值: " + newArrayValue);
+            
+            // 直接进行字符串替换，避免 replaceJsonValue 添加引号
+            // 查找 "paramName":[原数组] 并替换为 "paramName":[新数组]
+            String searchStr = "\"" + paramName + "\":" + arrayValue;
+            String replaceStr = "\"" + paramName + "\":" + newArrayValue;
+            
+            callbacks.printOutput("  -> 搜索字符串: " + searchStr);
+            callbacks.printOutput("  -> 替换字符串: " + replaceStr);
+            
+            String result = jsonBody.replace(searchStr, replaceStr);
+            
+            if (result.equals(jsonBody)) {
+                callbacks.printOutput("  -> 直接替换失败，尝试带空格的版本");
+                // 尝试带空格的版本
+                searchStr = "\"" + paramName + "\" : " + arrayValue;
+                replaceStr = "\"" + paramName + "\":" + newArrayValue;
+                result = jsonBody.replace(searchStr, replaceStr);
+                
+                if (result.equals(jsonBody)) {
+                    callbacks.printOutput("  -> 所有替换尝试都失败");
+                    return jsonBody;
+                }
+            }
+            
+            callbacks.printOutput("  -> 数组替换成功");
+            return result;
+            
+        } catch (Exception e) {
+            callbacks.printError("替换数组元素失败: " + e.getMessage());
+            e.printStackTrace();
+            return jsonBody;
         }
     }
     

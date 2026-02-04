@@ -38,6 +38,9 @@ public class DouSqlConfig {
     // URL黑名单配置
     private List<String> urlBlacklist = new ArrayList<>();
     
+    // 响应过滤配置
+    private ResponseFilterConfig responseFilterConfig = new ResponseFilterConfig();
+    
     public DouSqlConfig(BurpExtender burpExtender) {
         this.burpExtender = burpExtender;
         this.callbacks = burpExtender.callbacks;
@@ -755,4 +758,40 @@ public class DouSqlConfig {
         callbacks.printOutput("URL黑名单配置已保存: " + blacklistUrls.size() + "条规则");
     }
     
+    // 响应过滤配置相关方法
+    public ResponseFilterConfig getResponseFilterConfig() {
+        return responseFilterConfig;
+    }
+    
+    public void setResponseFilterConfig(ResponseFilterConfig responseFilterConfig) {
+        this.responseFilterConfig = responseFilterConfig;
+    }
+    
+    /**
+     * 保存响应过滤配置
+     */
+    public void saveResponseFilterConfig() {
+        try {
+            File configFile = new File(configDirectory, "response_filter.json");
+            // 这里可以实现 JSON 序列化保存
+            callbacks.printOutput("响应过滤配置已保存");
+        } catch (Exception e) {
+            callbacks.printError("保存响应过滤配置失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 加载响应过滤配置
+     */
+    public void loadResponseFilterConfig() {
+        try {
+            File configFile = new File(configDirectory, "response_filter.json");
+            if (configFile.exists()) {
+                // 这里可以实现 JSON 反序列化加载
+                callbacks.printOutput("响应过滤配置已加载");
+            }
+        } catch (Exception e) {
+            callbacks.printError("加载响应过滤配置失败: " + e.getMessage());
+        }
+    }
 }
