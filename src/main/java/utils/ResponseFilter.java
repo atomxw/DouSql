@@ -46,6 +46,13 @@ public class ResponseFilter {
         
         callbacks.printOutput("=== 响应过滤检查开始 ===");
         callbacks.printOutput("过滤模式: " + (config.isMatchAll() ? "所有条件都满足(AND)" : "任一条件满足(OR)"));
+        callbacks.printOutput("配置的条件数量: " + conditions.size());
+        
+        // 显示所有配置的条件
+        for (int i = 0; i < conditions.size(); i++) {
+            FilterCondition condition = conditions.get(i);
+            callbacks.printOutput("条件[" + i + "]: " + condition.toString() + " (启用: " + condition.isEnabled() + ")");
+        }
         
         boolean result;
         if (config.isMatchAll()) {
@@ -57,6 +64,7 @@ public class ResponseFilter {
         }
         
         callbacks.printOutput("响应过滤结果: " + (result ? "通过" : "不通过"));
+        callbacks.printOutput("说明: " + (result ? "此响应将被处理和显示" : "此响应将被跳过，不显示"));
         callbacks.printOutput("=== 响应过滤检查结束 ===");
         
         return result;
@@ -152,7 +160,13 @@ public class ResponseFilter {
         
         try {
             int expectedStatusCode = Integer.parseInt(condition.getValue());
-            return compareNumbers(actualStatusCode, expectedStatusCode, condition.getOperator());
+            boolean result = compareNumbers(actualStatusCode, expectedStatusCode, condition.getOperator());
+            
+            // 添加详细的调试信息
+            callbacks.printOutput("  状态码详细检查: 实际=" + actualStatusCode + ", 期望=" + expectedStatusCode + 
+                                ", 操作符=" + condition.getOperator().getDisplayName() + ", 结果=" + result);
+            
+            return result;
         } catch (NumberFormatException e) {
             callbacks.printError("状态码条件值格式错误: " + condition.getValue());
             return false;

@@ -65,12 +65,6 @@ public class HttpUtils {
                 return;
             }
             
-            // 检查响应过滤条件
-            if (!responseFilter.shouldProcessResponse(requestResponse, burpExtender.config.getResponseFilterConfig())) {
-                callbacks.printOutput("响应不符合过滤条件，跳过处理: " + url);
-                return;
-            }
-            
             callbacks.printOutput("=== 开始处理HTTP请求 ===");
             callbacks.printOutput("URL: " + url);
             callbacks.printOutput("方法: " + method);
@@ -1746,11 +1740,10 @@ public class HttpUtils {
                 return;
             }
             
-            // 应用响应过滤 - 在payload测试中生效
+            // 检查响应过滤条件 - 只针对当前payload测试的响应
             if (!responseFilter.shouldProcessResponse(response, burpExtender.config.getResponseFilterConfig())) {
-                callbacks.printOutput("  -> 响应过滤: 响应不符合过滤条件，跳过此payload测试结果");
-                callbacks.printOutput("  -> 跳过的payload: " + payload + " (参数: " + paramName + ")");
-                return; // 直接返回，不记录此响应
+                callbacks.printOutput("  -> 响应不符合过滤条件，跳过此payload测试: " + payload);
+                return;
             }
             
             IResponseInfo responseInfo = helpers.analyzeResponse(response.getResponse());

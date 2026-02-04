@@ -203,6 +203,7 @@ public class I18nManager {
         messages.put("button.delete.group", "删除");
         messages.put("button.save.payload", "保存payload");
         messages.put("button.reload.payload", "重新加载payload");
+        messages.put("button.reset.payload.default", "重置为默认");
         messages.put("button.reset.default", "重置为默认");
         messages.put("button.save.error.config", "保存报错信息配置");
         messages.put("button.save.time.config", "保存时间阈值配置");
@@ -372,6 +373,7 @@ public class I18nManager {
         messages.put("button.delete.group", "Delete");
         messages.put("button.save.payload", "Save Payload");
         messages.put("button.reload.payload", "Reload Payload");
+        messages.put("button.reset.payload.default", "Reset to Default");
         messages.put("button.reset.default", "Reset to Default");
         messages.put("button.save.error.config", "Save Error Config");
         messages.put("button.save.time.config", "Save Time Config");

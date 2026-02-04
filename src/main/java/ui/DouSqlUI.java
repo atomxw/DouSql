@@ -477,12 +477,12 @@ public class DouSqlUI implements ITab, IMessageEditorController {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         JButton savePayloadButton = new JButton(burpExtender.i18n.getText("button.save.payload"));
         JButton loadPayloadButton = new JButton(burpExtender.i18n.getText("button.reload.payload"));
-        JButton resetPayloadButton = new JButton(burpExtender.i18n.getText("button.reset.default"));
+        JButton resetPayloadButton = new JButton(burpExtender.i18n.getText("button.reset.payload.default"));
         
         // 注册按钮组件
         registerI18nComponent("button.save.payload", savePayloadButton);
         registerI18nComponent("button.reload.payload", loadPayloadButton);
-        registerI18nComponent("button.reset.default", resetPayloadButton);
+        registerI18nComponent("button.reset.payload.default", resetPayloadButton);
         
         savePayloadButton.setPreferredSize(new Dimension(120, 25));
         loadPayloadButton.setPreferredSize(new Dimension(140, 25));
